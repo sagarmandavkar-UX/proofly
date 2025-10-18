@@ -10,7 +10,7 @@
     "paths": {
       "~/*": ["src/*"]
     },
-    "types": ["vite/client", "chrome"],
+    "types": ["vite/client", "chrome", "@types/dom-chromium-ai"],
     "allowImportingTsExtensions": true,
     "strict": true,
     "noFallthroughCasesInSwitch": true,

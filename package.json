@@ -1,5 +1,6 @@
 {
-  "name": "proofly",
+  "name": "Proofly",
+  "displayName": "Proofly – Private AI Writing, Proofreading & Grammar Assistant",
   "type": "module",
   "version": "1.0.0",
   "private": true,

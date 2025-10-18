@@ -13,6 +13,8 @@ Proofly is a privacy-first Chrome extension for proofreading that uses Chrome's 
 
 ### Technology Stack
 - **TypeScript**: Strict mode, comprehensive type coverage
+  - **Type Definitions**: Add external type packages to `tsconfig.json` `types` array, NOT via reference imports
+  - Example: `"types": ["vite/client", "chrome", "@types/dom-chromium-ai"]`
 - **Vite + CRXJS**: Modern build pipeline
 - **Web Components**: Shadow DOM for UI isolation
 - **Vanilla JS**: No frameworks—keep bundle size minimal
@@ -32,6 +34,31 @@ Proofly is a privacy-first Chrome extension for proofreading that uses Chrome's 
 8. **Design Token System**: CSS custom properties for consistency
 
 ## 🔧 Development Guidelines
+
+### Build Verification
+
+**IMPORTANT**: After introducing a new file or making large edits, **always run the build script** to ensure the project still compiles:
+
+```bash
+npm run build
+```
+
+This catches TypeScript errors, type mismatches, and build issues early before they accumulate.
+
+### Code Style
+
+#### Comments
+- **Don't use comments with code**: Avoid adding comments and descriptions to files, variables, and functions
+- **Self-explanatory naming**: Use clear, descriptive names for variables, functions, and types
+- **Example**:
+  ```typescript
+  // ❌ Bad: Unnecessary comment
+  // Get the user's name
+  const name = user.name;
+
+  // ✅ Good: Self-explanatory
+  const userName = user.name;
+  ```
 
 ### Architectural Principles
 
@@ -80,13 +107,15 @@ function buildCorrectedText(
 src/
 ├── background/
 │   ├── service-worker.ts
-│   ├── ai-manager.ts
 │   └── message-handler.ts
 ├── content/
-│   ├── content-script.ts        # <5KB entry
-│   ├── components/              # Web components (Shadow DOM)
-│   └── services/                # Business logic (pure functions)
+│   ├── main.ts                  # <5KB entry
+│   └── components/              # Web components (Shadow DOM)
+├── services/                    # Shared services (pure functions)
+│   ├── proofreader.ts
+│   └── model-downloader.ts
 ├── popup/
+├── sidepanel/
 ├── options/
 ├── shared/
 │   ├── types.ts
@@ -100,6 +129,11 @@ src/
 ```
 
 ### Web Component Pattern
+
+**IMPORTANT: Custom Element Naming Convention**
+- All custom elements MUST use the `prfly-` prefix
+- Examples: `prfly-mirror`, `prfly-highlighter`, `prfly-textarea`, `prfly-issues-sidebar`
+- This prevents conflicts with other extensions and libraries
 
 ```typescript
 export class ProoflyComponent extends HTMLElement {
@@ -132,6 +166,9 @@ export class ProoflyComponent extends HTMLElement {
     `;
   }
 }
+
+// Register with prfly- prefix
+customElements.define('prfly-component-name', ProoflyComponent);
 ```
 
 ### Design Tokens
