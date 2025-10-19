@@ -457,6 +457,7 @@ export class ProofreadingTextarea extends HTMLElement {
     editor.className = 'editor';
     editor.contentEditable = 'true';
     editor.setAttribute('data-placeholder', 'Start typing to check for errors...');
+    editor.setAttribute('data-placeholder', 'Start typing to check for errors...');
     editor.setAttribute('spellcheck', 'false');
 
     const loadingIndicator = document.createElement('div');

@@ -45,6 +45,67 @@ npm run build
 
 This catches TypeScript errors, type mismatches, and build issues early before they accumulate.
 
+### Chrome Extension Development Loop
+
+When developing and debugging Chrome extension features, follow this iterative testing cycle:
+
+1. **Make Code Changes**: Edit the relevant TypeScript/JavaScript files
+2. **Build**: Run `npm run build` to compile and bundle the extension
+3. **Navigate to Extension Page**: Use Chrome DevTools MCP to navigate to the extension page
+   - Example: `chrome-extension://[extension-id]/src/options/index.html`
+4. **Fill Test Data**: Use `evaluate_script` to programmatically interact with the page
+   - Fill form inputs, trigger events, simulate user interactions
+5. **Inspect Console Logs**: Use `list_console_messages` and `get_console_message` to check for:
+   - JavaScript errors
+   - Debug logs
+   - API responses
+   - State changes
+6. **Take Page Snapshots**: Use `take_snapshot` to verify DOM state and UI elements
+   - Check element text content
+   - Verify component rendering
+   - Inspect accessibility tree
+7. **Verify Behavior**: Check if the feature works as expected
+8. **Iterate**: If issues found, repeat from step 1
+
+**Example Testing Cycle**:
+```typescript
+// 1. Build after changes
+npm run build
+
+// 2. Navigate to extension page
+mcp__chrome-devtools__navigate_page({
+  url: "chrome-extension://oiaicmknhbpnhngdeppegnhobnleeolm/src/options/index.html"
+})
+
+// 3. Fill test data via script evaluation
+mcp__chrome-devtools__evaluate_script({
+  function: `() => {
+    const textarea = document.querySelector('proofly-textarea');
+    if (textarea?.shadowRoot) {
+      const editor = textarea.shadowRoot.querySelector('[contenteditable="true"]');
+      editor.textContent = "Test text with errros";
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }`
+})
+
+// 4. Check console for errors/logs
+mcp__chrome-devtools__list_console_messages()
+mcp__chrome-devtools__get_console_message({ msgid: 42 })
+
+// 5. Verify DOM state
+mcp__chrome-devtools__take_snapshot()
+
+// 6. Verify specific elements or corrections appeared
+```
+
+**Key Principles**:
+- **Do NOT take screenshots** in the testing loop - use snapshots for faster verification
+- Use console logs extensively for debugging complex logic
+- Leverage `evaluate_script` to simulate user interactions programmatically
+- Check both console output AND DOM state to verify behavior
+- Build after every code change to ensure compilation success
+
 ### Code Style
 
 #### Comments
