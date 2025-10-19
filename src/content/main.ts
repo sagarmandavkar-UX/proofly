@@ -1,21 +1,23 @@
-console.log('Proofly: TOP OF FILE - Script is loading!');
+import { logger } from "../services/logger.ts";
+
+logger.info('Proofly: TOP OF FILE - Script is loading!');
 
 import { ProofreadingManager } from './proofreading-manager.ts';
 import { isModelReady } from '../shared/utils/storage.ts';
 
-console.log('Proofly: After imports');
+logger.info({ test: 'structured-data', value: 123 }, 'Proofly: After imports');
 
 let manager: ProofreadingManager | null = null;
 
 async function initProofreading() {
-  console.log('Proofly: Content script loaded');
+  logger.info('Proofly: Content script loaded');
 
   try {
     const modelReady = await isModelReady();
-    console.log('Proofly: Model ready check:', modelReady);
+    logger.info({ modelReady }, 'Proofly: Model ready check:');
 
     if (!modelReady) {
-      console.log('Proofly: AI model not ready. Please download the model from the extension options page.');
+      logger.info('Proofly: AI model not ready. Please download the model from the extension options page.');
       return;
     }
 
@@ -26,8 +28,10 @@ async function initProofreading() {
     manager = new ProofreadingManager();
     await manager.initialize();
 
-    console.log('Proofly: Proofreading enabled');
+    logger.info('Proofly: Proofreading enabled');
+    injectContentScriptMarker();
   } catch (error) {
+    removeInjectedMarker();
     console.error('Proofly: Failed to initialize:', error);
   }
 }
@@ -49,6 +53,20 @@ if (document.readyState === 'loading') {
 
 // CRXJS loader expects this export (keep for compatibility)
 export function onExecute(config?: { perf?: { injectTime: number; loadTime: number } }) {
-  console.log('Proofly: onExecute called with config:', config);
+  logger.info(config, 'Proofly: onExecute called with config');
   // Already executed above, so this is a no-op
+}
+
+function injectContentScriptMarker() {
+  const meta = document.createElement('meta')
+  meta.name = 'prfly-content-script-injected'
+  meta.content = 'true'
+  document.head.appendChild(meta)
+}
+
+function removeInjectedMarker() {
+  const marker = document.querySelector('meta[name="prfly-content-script-injected"]')
+  if (marker) {
+    marker.remove()
+  }
 }

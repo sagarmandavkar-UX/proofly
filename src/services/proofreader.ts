@@ -1,3 +1,5 @@
+import { logger } from "../services/logger.ts";
+
 export interface IProofreader {
   proofread(text: string): Promise<ProofreadResult>;
   destroy(): void;
@@ -33,7 +35,7 @@ export const DEFAULT_SERVICE_CONFIG: ProofreaderServiceConfig = {
 
 export async function checkProofreaderAvailability(): Promise<Availability> {
   if (!('Proofreader' in window)) {
-    console.warn('Chrome Built-in Proofreader API not available');
+    logger.warn('Chrome Built-in Proofreader API not available');
     return 'unavailable';
   }
 
@@ -61,7 +63,7 @@ export async function createProofreader(
     correctionExplanationLanguage: config.correctionExplanationLanguage,
     monitor(m) {
       m.addEventListener('downloadprogress', (e) => {
-        console.log(`Downloaded ${e.loaded * 100}%`);
+        logger.info(`Downloaded ${e.loaded * 100}%`);
         onProgress?.(e.loaded);
       });
     },

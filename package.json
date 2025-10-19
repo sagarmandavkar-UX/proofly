@@ -17,6 +17,7 @@
     "vite-plugin-zip-pack": "^1.2.4"
   },
   "dependencies": {
-    "@types/dom-chromium-ai": "^0.0.10"
+    "@types/dom-chromium-ai": "^0.0.10",
+    "pino": "^10.1.0"
   }
 }

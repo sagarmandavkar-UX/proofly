@@ -1,3 +1,5 @@
+import { logger } from "./logger.ts";
+
 export type DownloadState =
   | 'idle'
   | 'checking'
@@ -204,9 +206,8 @@ export function createModelDownloader(
         }
 
         if (config.autoRetry) {
-          console.warn(
+          logger.warn({ err },
             `Download failed, retrying (${retries}/${config.maxRetries})...`,
-            err
           );
           await new Promise((resolve) => setTimeout(resolve, config.retryDelayMs));
         } else {

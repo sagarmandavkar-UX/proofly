@@ -1,8 +1,9 @@
 import { initializeStorage } from '../shared/utils/storage.ts';
+import { logger } from "../services/logger.ts";
 
 chrome.runtime.onInstalled.addListener(async () => {
   await initializeStorage();
-  console.log('Proofly extension installed and storage initialized');
+  logger.info('Proofly extension installed and storage initialized');
 
   chrome.contextMenus.create({
     id: 'proofly-check',
@@ -13,7 +14,7 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 chrome.runtime.onStartup.addListener(async () => {
   await initializeStorage();
-  console.log('Proofly extension started');
+  logger.info('Proofly extension started');
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {

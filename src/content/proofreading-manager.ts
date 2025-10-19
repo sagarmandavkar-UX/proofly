@@ -11,6 +11,7 @@ import './components/issues-sidebar.ts';
 import type { IssuesSidebar, IssueItem } from './components/issues-sidebar.ts';
 import './components/correction-popover.ts';
 import type { CorrectionPopover } from './components/correction-popover.ts';
+import { logger } from "../services/logger.ts";
 
 export class ProofreadingManager {
   private highlighter = new ContentHighlighter();
@@ -26,23 +27,23 @@ export class ProofreadingManager {
   async initialize(): Promise<void> {
     // Initialize proofreader service
     try {
-      console.log('Proofly: Starting proofreader initialization');
+      logger.info('Proofly: Starting proofreader initialization');
       const proofreader = await createProofreader();
-      console.log('Proofly: Proofreader created');
+      logger.info('Proofly: Proofreader created');
       const adapter = createProofreaderAdapter(proofreader);
       this.proofreaderService = createProofreadingService(adapter);
-      console.log('Proofly: Proofreader service initialized successfully');
+      logger.info('Proofly: Proofreader service initialized successfully');
     } catch (error) {
-      console.error('Proofly: Failed to initialize proofreader:', error);
+      logger.error({error}, 'Proofly: Failed to initialize proofreader');
       return;
     }
 
-    console.log('Proofly: Setting up event listeners');
+    logger.info('Proofly: Setting up event listeners');
     this.createSidebar();
     this.createPopover();
     this.setupContextMenuHandler();
     this.observeEditableElements();
-    console.log('Proofly: Event listeners set up - ready for input!');
+    logger.info('Proofly: Event listeners set up - ready for input!');
   }
 
   private createSidebar(): void {
@@ -152,12 +153,12 @@ export class ProofreadingManager {
           this.handleCorrectionFromPopover(element, clickedElement, correction);
         });
 
-        console.log(`Proofly: Found ${result.corrections.length} corrections`);
+        logger.info(`Proofly: Found ${result.corrections.length} corrections`);
       } else {
         this.clearElementHighlights(element);
       }
     } catch (error) {
-      console.error('Proofly: Proofreading failed:', error);
+      logger.error({ error }, 'Proofly: Proofreading failed');
     }
   }
 

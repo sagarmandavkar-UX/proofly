@@ -37,20 +37,18 @@ Proofly is a privacy-first Chrome extension for proofreading that uses Chrome's 
 
 ### Build Verification
 
-**IMPORTANT**: After introducing a new file or making large edits, **always run the build script** to ensure the project still compiles:
-
-```bash
-npm run build
-```
-
-This catches TypeScript errors, type mismatches, and build issues early before they accumulate.
+**IMPORTANT**:
+- **DO NOT run `npm run build` manually** unless explicitly instructed by the user
+- The `npm run dev` script is already running in a separate terminal and automatically builds the extension on file changes
+- The dev script watches for changes and rebuilds automatically, providing faster feedback during development
+- Only run `npm run build` if specifically requested by the user for production builds or troubleshooting
 
 ### Chrome Extension Development Loop
 
 When developing and debugging Chrome extension features, follow this iterative testing cycle:
 
-1. **Make Code Changes**: Edit the relevant TypeScript/JavaScript files
-2. **Build**: Run `npm run build` to compile and bundle the extension
+1. **Make Code Changes**: Edit the relevant TypeScript/JavaScript files (dev script auto-rebuilds)
+2. **Wait for Auto-Build**: The dev script running in a separate terminal will automatically detect changes and rebuild
 3. **Navigate to Extension Page**: Use Chrome DevTools MCP to navigate to the extension page
    - Example: `chrome-extension://[extension-id]/src/options/index.html`
 4. **Fill Test Data**: Use `evaluate_script` to programmatically interact with the page
@@ -60,17 +58,26 @@ When developing and debugging Chrome extension features, follow this iterative t
    - Debug logs
    - API responses
    - State changes
-6. **Take Page Snapshots**: Use `take_snapshot` to verify DOM state and UI elements
+6. **Access Extension Logs**: Use `extension_get_logs` to retrieve app logs across all contexts:
+   ```typescript
+   mcp__chrome-devtools__extension_get_logs({
+     extensionId: "oiaicmknhbpnhngdeppegnhobnleeolm",
+     maxEntries: 100,
+     contextType: "all",
+     logLevel: "all"
+   })
+   ```
+   This captures logs from background, content scripts, popup, sidebar, and options pages.
+7. **Take Page Snapshots**: Use `take_snapshot` to verify DOM state and UI elements
    - Check element text content
    - Verify component rendering
    - Inspect accessibility tree
-7. **Verify Behavior**: Check if the feature works as expected
-8. **Iterate**: If issues found, repeat from step 1
+8. **Verify Behavior**: Check if the feature works as expected
+9. **Iterate**: If issues found, repeat from step 1
 
 **Example Testing Cycle**:
 ```typescript
-// 1. Build after changes
-npm run build
+// 1. Make code changes (dev script auto-rebuilds in the background)
 
 // 2. Navigate to extension page
 mcp__chrome-devtools__navigate_page({
@@ -93,18 +100,27 @@ mcp__chrome-devtools__evaluate_script({
 mcp__chrome-devtools__list_console_messages()
 mcp__chrome-devtools__get_console_message({ msgid: 42 })
 
-// 5. Verify DOM state
+// 5. Access extension logs
+mcp__chrome-devtools__extension_get_logs({
+  extensionId: "oiaicmknhbpnhngdeppegnhobnleeolm",
+  maxEntries: 100,
+  contextType: "all",
+  logLevel: "all"
+})
+
+// 6. Verify DOM state
 mcp__chrome-devtools__take_snapshot()
 
-// 6. Verify specific elements or corrections appeared
+// 7. Verify specific elements or corrections appeared
 ```
 
 **Key Principles**:
 - **Do NOT take screenshots** in the testing loop - use snapshots for faster verification
+- **Do NOT run `npm run build`** - the dev script handles automatic rebuilding
 - Use console logs extensively for debugging complex logic
 - Leverage `evaluate_script` to simulate user interactions programmatically
 - Check both console output AND DOM state to verify behavior
-- Build after every code change to ensure compilation success
+- Use `extension_get_logs` to access structured logs across all extension contexts
 
 ### Code Style
 
