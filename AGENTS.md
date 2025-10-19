@@ -43,6 +43,70 @@ Proofly is a privacy-first Chrome extension for proofreading that uses Chrome's 
 - The dev script watches for changes and rebuilds automatically, providing faster feedback during development
 - Only run `npm run build` if specifically requested by the user for production builds or troubleshooting
 
+### Standard Testing Workflow for Content Scripts
+
+**FOR EVERY CODE CHANGE**, follow this complete verification workflow:
+
+#### 1. Make Changes
+- Implement the requested changes in the codebase
+- Dev script auto-rebuilds the extension
+
+#### 2. Open Test Environment
+- Navigate to http://textarea.online/ (simple textarea for testing)
+- Or use any other test page appropriate for the feature
+
+#### 3. Type Test Input
+- Enter text with intentional errors, issues, or content that exercises the feature
+- Simulate real user interactions
+
+#### 4. Verify Changes (3-Step Verification)
+
+**A. Element Inspection via Page Snapshot**
+```typescript
+mcp__chrome-devtools__take_snapshot({ verbose: false })
+```
+- Purpose: Inspect DOM structure, verify highlights/corrections are applied
+- Check: Element attributes, classes, data attributes, Shadow DOM content
+- Verify: Components are rendered, custom elements exist
+
+**B. Visual Verification via Screenshot**
+```typescript
+mcp__chrome-devtools__take_screenshot({ fullPage: true })
+```
+- Purpose: Visual confirmation of UI elements, highlights, popovers
+- Check: Visual appearance, positioning, styling, user-visible state
+- Verify: Colors, overlays, tooltips, animations
+
+**C. Debugging via Extension Logs**
+```typescript
+mcp__chrome-devtools__extension_get_logs({
+  extensionId: "oiaicmknhbpnhngdeppegnhobnleeolm",
+  maxEntries: 100,
+  contextType: "all",
+  logLevel: "all"
+})
+```
+- Purpose: Debug execution flow, verify sequence of operations
+- Check: Log messages, timing, execution order, error states
+- Verify: Content script initialization, event handlers, API calls
+
+#### 5. Analysis & Iteration
+- Compare expected vs actual behavior across all three verification methods
+- Check for console errors or warnings via `list_console_messages`
+- Verify complete flow: input → detection → highlighting → correction
+- If issues found, return to step 1
+
+#### Quick Reference
+
+**Test Page**: http://textarea.online/
+**Extension ID**: Get from manifest.json or chrome://extensions
+
+**Common Test Scenarios**:
+- Basic proofreading: Type text with spelling/grammar errors
+- Performance: Type rapidly, verify responsiveness
+- Edge cases: Empty input, special characters, very long text
+- UI interactions: Click highlights, hover corrections, accept suggestions
+
 ### Chrome Extension Development Loop
 
 When developing and debugging Chrome extension features, follow this iterative testing cycle:
