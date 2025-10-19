@@ -32,6 +32,16 @@ export class ProofreadingTextarea extends HTMLElement {
     this.render();
     await this.initializeProofreader();
     this.attachEventListeners();
+    this.setupHighlighterCallback();
+  }
+
+  private setupHighlighterCallback() {
+    if (this.elements.editor) {
+      this.highlighter.setOnCorrectionApplied(this.elements.editor, (updatedCorrections) => {
+        this.currentCorrections = updatedCorrections;
+        this.updateCorrectionsPanel(updatedCorrections);
+      });
+    }
   }
 
   disconnectedCallback() {
@@ -181,7 +191,24 @@ export class ProofreadingTextarea extends HTMLElement {
       text.substring(correction.endIndex);
 
     this.elements.editor.textContent = newText;
-    this.elements.editor.dispatchEvent(new Event('input', { bubbles: true }));
+
+    const lengthDiff = correction.correction.length - (correction.endIndex - correction.startIndex);
+
+    this.currentCorrections = this.currentCorrections
+      .filter((_, i) => i !== index)
+      .map(c => {
+        if (c.startIndex > correction.startIndex) {
+          return {
+            ...c,
+            startIndex: c.startIndex + lengthDiff,
+            endIndex: c.endIndex + lengthDiff
+          };
+        }
+        return c;
+      });
+
+    this.updateHighlights(newText, this.currentCorrections);
+    this.updateCorrectionsPanel(this.currentCorrections);
   }
 
   private clearHighlights() {

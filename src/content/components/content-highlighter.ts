@@ -22,10 +22,15 @@ export class ContentHighlighter {
   private highlights = new Map<string, Highlight>();
   private popover: CorrectionPopover | null = null;
   private clickHandlers = new Map<HTMLElement, (e: MouseEvent) => void>();
+  private onCorrectionAppliedCallbacks = new Map<HTMLElement, (updatedCorrections: ProofreadCorrection[]) => void>();
 
   constructor() {
     this.initializeHighlights();
     this.initializePopover();
+  }
+
+  setOnCorrectionApplied(element: HTMLElement, callback: (updatedCorrections: ProofreadCorrection[]) => void): void {
+    this.onCorrectionAppliedCallbacks.set(element, callback);
   }
 
   private initializeHighlights(): void {
@@ -206,7 +211,36 @@ export class ContentHighlighter {
       element.textContent = newText;
     }
 
-    element.dispatchEvent(new Event('input', { bubbles: true }));
+    const lengthDiff = correction.correction.length - (correction.endIndex - correction.startIndex);
+
+    const corrections = this.highlightedElements.get(element);
+    if (corrections) {
+      const updatedCorrections = corrections
+        .filter(c => c !== correction)
+        .map(c => {
+          if (c.startIndex > correction.startIndex) {
+            return {
+              ...c,
+              startIndex: c.startIndex + lengthDiff,
+              endIndex: c.endIndex + lengthDiff
+            };
+          }
+          return c;
+        });
+
+      this.highlightedElements.set(element, updatedCorrections);
+
+      if (updatedCorrections.length > 0) {
+        this.applyHighlights(element, updatedCorrections);
+      } else {
+        this.clearHighlights(element);
+      }
+
+      const callback = this.onCorrectionAppliedCallbacks.get(element);
+      if (callback) {
+        callback(updatedCorrections);
+      }
+    }
   }
 
   clearHighlights(element: HTMLElement): void {
