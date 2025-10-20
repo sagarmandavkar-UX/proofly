@@ -191,17 +191,27 @@ export class ProofreadingManager {
       const result = await this.proofreaderService.proofread(text);
 
       if (result.corrections && result.corrections.length > 0) {
-        this.elementCorrections.set(element, result.corrections);
+        const trimmedLength = text.trimEnd().length;
+        const filteredCorrections = result.corrections.filter(correction =>
+          correction.startIndex < trimmedLength
+        );
+
+        if (filteredCorrections.length === 0) {
+          this.clearElementHighlights(element);
+          return;
+        }
+
+        this.elementCorrections.set(element, filteredCorrections);
 
         // For textarea/input, use canvas overlay
         if (this.isTextareaOrInput(element)) {
-          this.highlightWithCanvas(element as HTMLTextAreaElement | HTMLInputElement, result.corrections);
+          this.highlightWithCanvas(element as HTMLTextAreaElement | HTMLInputElement, filteredCorrections);
         } else {
           // For contenteditable, use direct highlighting
-          this.highlighter.highlight(element, result.corrections);
+          this.highlighter.highlight(element, filteredCorrections);
         }
 
-        this.updateSidebar(element, result.corrections);
+        this.updateSidebar(element, filteredCorrections);
 
         // Setup callback for when corrections are applied via clicking highlights
         const targetElement = this.getHighlightTarget(element);
@@ -215,7 +225,7 @@ export class ProofreadingManager {
           this.handleCorrectionFromPopover(element, clickedElement, correction);
         });
 
-        logger.info(`Proofly: Found ${result.corrections.length} corrections`);
+        logger.info(`Proofly: Found ${filteredCorrections.length} corrections`);
       } else {
         this.clearElementHighlights(element);
       }
