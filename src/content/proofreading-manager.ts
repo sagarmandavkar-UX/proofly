@@ -272,14 +272,11 @@ export class ProofreadingManager {
   }
 
   private handleCorrectionFromPopover(originalElement: HTMLElement, clickedElement: HTMLElement, correction: ProofreadCorrection): void {
-    // clickedElement might be a mirror, so we need to find the actual textarea
     let actualElement = originalElement;
 
     if (this.isTextareaOrInput(originalElement)) {
-      // originalElement is the textarea - use it directly
       actualElement = originalElement;
     } else if (clickedElement.hasAttribute('data-proofly-mirror')) {
-      // clickedElement is a mirror, find the actual textarea
       for (const [textarea, mirror] of this.elementMirrors.entries()) {
         if (mirror.getElement() === clickedElement) {
           actualElement = textarea;
@@ -288,18 +285,19 @@ export class ProofreadingManager {
       }
     }
 
-    // Apply the correction
     const text = this.getElementText(actualElement);
     if (!text) return;
 
-    const newText =
-      text.substring(0, correction.startIndex) +
-      correction.correction +
-      text.substring(correction.endIndex);
+    if (this.isTextareaOrInput(actualElement)) {
+      this.applyCorrectionWithUndo(actualElement as HTMLTextAreaElement | HTMLInputElement, correction);
+    } else {
+      const newText =
+        text.substring(0, correction.startIndex) +
+        correction.correction +
+        text.substring(correction.endIndex);
+      this.setElementText(actualElement, newText);
+    }
 
-    this.setElementText(actualElement, newText);
-
-    // Update corrections and re-highlight
     const lengthDiff = correction.correction.length - (correction.endIndex - correction.startIndex);
     const corrections = this.elementCorrections.get(actualElement);
     if (corrections) {
@@ -335,10 +333,8 @@ export class ProofreadingManager {
   private applyCorrection(issue: IssueItem): void {
     const { element, correction } = issue;
 
-    // BUG FIX: If element is a mirror, get the actual textarea
     let actualElement = element;
     if (element.hasAttribute('data-proofly-mirror')) {
-      // Find the textarea that this mirror belongs to
       for (const [textarea, mirror] of this.elementMirrors.entries()) {
         if (mirror.getElement() === element) {
           actualElement = textarea;
@@ -348,15 +344,17 @@ export class ProofreadingManager {
     }
 
     const text = this.getElementText(actualElement);
-
     if (!text) return;
 
-    const newText =
-      text.substring(0, correction.startIndex) +
-      correction.correction +
-      text.substring(correction.endIndex);
-
-    this.setElementText(actualElement, newText);
+    if (this.isTextareaOrInput(actualElement)) {
+      this.applyCorrectionWithUndo(actualElement as HTMLTextAreaElement | HTMLInputElement, correction);
+    } else {
+      const newText =
+        text.substring(0, correction.startIndex) +
+        correction.correction +
+        text.substring(correction.endIndex);
+      this.setElementText(actualElement, newText);
+    }
 
     const lengthDiff = correction.correction.length - (correction.endIndex - correction.startIndex);
 
@@ -378,7 +376,6 @@ export class ProofreadingManager {
       this.elementCorrections.set(actualElement, updatedCorrections);
 
       if (updatedCorrections.length > 0) {
-        // For textarea/input, need to re-highlight on canvas
         if (this.isTextareaOrInput(actualElement)) {
           this.highlightWithCanvas(actualElement as HTMLTextAreaElement | HTMLInputElement, updatedCorrections);
         } else {
@@ -427,6 +424,47 @@ export class ProofreadingManager {
       element.dispatchEvent(new Event('input', { bubbles: true }));
     } else {
       element.textContent = text;
+    }
+  }
+
+  private applyCorrectionWithUndo(element: HTMLTextAreaElement | HTMLInputElement, correction: ProofreadCorrection): void {
+    const originalStart = element.selectionStart;
+    const originalEnd = element.selectionEnd;
+
+    element.focus();
+    element.setSelectionRange(correction.startIndex, correction.endIndex);
+
+    const isSupported = document.execCommand('insertText', false, correction.correction);
+
+    if (!isSupported) {
+      const text = element.value;
+      const before = text.substring(0, correction.startIndex);
+      const after = text.substring(correction.endIndex);
+      element.value = before + correction.correction + after;
+
+      const newPosition = correction.startIndex + correction.correction.length;
+      element.setSelectionRange(newPosition, newPosition);
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    if (originalStart !== null && originalEnd !== null) {
+      const lengthDiff = correction.correction.length - (correction.endIndex - correction.startIndex);
+      let newStart = originalStart;
+      let newEnd = originalEnd;
+
+      if (originalStart > correction.endIndex) {
+        newStart = originalStart + lengthDiff;
+      } else if (originalStart > correction.startIndex) {
+        newStart = correction.startIndex + correction.correction.length;
+      }
+
+      if (originalEnd > correction.endIndex) {
+        newEnd = originalEnd + lengthDiff;
+      } else if (originalEnd > correction.startIndex) {
+        newEnd = correction.startIndex + correction.correction.length;
+      }
+
+      element.setSelectionRange(newStart, newEnd);
     }
   }
 
