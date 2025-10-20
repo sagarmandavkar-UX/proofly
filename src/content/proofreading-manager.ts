@@ -76,6 +76,39 @@ export class ProofreadingManager {
     });
   }
 
+  private getCursorPosition(element: HTMLElement): number | null {
+    if (this.isTextareaOrInput(element)) {
+      const input = element as HTMLTextAreaElement | HTMLInputElement;
+      return input.selectionStart;
+    }
+    return null;
+  }
+
+  private clearHighlightsAfterCursor(element: HTMLElement): void {
+    const cursorPosition = this.getCursorPosition(element);
+    if (cursorPosition === null) return;
+
+    const corrections = this.elementCorrections.get(element);
+    if (!corrections || corrections.length === 0) return;
+
+    const validCorrections = corrections.filter(correction => correction.endIndex < cursorPosition);
+
+    if (validCorrections.length === 0) {
+      this.clearElementHighlights(element);
+      this.sidebar?.setIssues([]);
+    } else if (validCorrections.length < corrections.length) {
+      this.elementCorrections.set(element, validCorrections);
+
+      if (this.isTextareaOrInput(element)) {
+        this.highlightWithCanvas(element as HTMLTextAreaElement | HTMLInputElement, validCorrections);
+      } else {
+        this.highlighter.highlight(element, validCorrections);
+      }
+
+      this.updateSidebar(element, validCorrections);
+    }
+  }
+
   private observeEditableElements(): void {
     const debouncedProofread = debounce((element: HTMLElement) => {
       void this.proofreadElement(element);
@@ -84,6 +117,7 @@ export class ProofreadingManager {
     const handleInput = (e: Event) => {
       const target = e.target as HTMLElement;
       if (this.isEditableElement(target)) {
+        this.clearHighlightsAfterCursor(target);
         debouncedProofread(target);
       }
     };
