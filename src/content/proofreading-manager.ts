@@ -25,6 +25,7 @@ export class ProofreadingManager {
   private proofreaderService: ReturnType<typeof createProofreadingService> | null = null;
   private elementPreviousText = new Map<HTMLElement, string>();
   private isApplyingCorrection = false;
+  private debouncedProofread: ((element: HTMLElement) => void) | null = null;
 
   async initialize(): Promise<void> {
     // Initialize proofreader service
@@ -125,7 +126,7 @@ export class ProofreadingManager {
   }
 
   private observeEditableElements(): void {
-    const debouncedProofread = debounce((element: HTMLElement) => {
+    this.debouncedProofread = debounce((element: HTMLElement) => {
       void this.proofreadElement(element);
     }, 1500);
 
@@ -141,7 +142,7 @@ export class ProofreadingManager {
         this.clearHighlightsAfterCursor(target);
 
         if (!this.isOnlyTrailingSpaceAdded(target, currentText)) {
-          debouncedProofread(target);
+          this.debouncedProofread?.(target);
         }
 
         this.elementPreviousText.set(target, currentText);
@@ -159,7 +160,7 @@ export class ProofreadingManager {
               if (this.isEditableElement(element)) {
                 const text = this.getElementText(element);
                 if (text && text.length > 10) {
-                  debouncedProofread(element);
+                  this.debouncedProofread?.(element);
                 }
               }
             }
@@ -189,6 +190,12 @@ export class ProofreadingManager {
 
     try {
       const result = await this.proofreaderService.proofread(text);
+
+      const currentText = this.getElementText(element);
+      if (currentText !== text) {
+        logger.info('Proofly: Text changed during proofreading, discarding stale results');
+        return;
+      }
 
       if (result.corrections && result.corrections.length > 0) {
         const trimmedLength = text.trimEnd().length;
@@ -369,6 +376,8 @@ export class ProofreadingManager {
         this.sidebar?.setIssues([]);
       }
     }
+
+    this.debouncedProofread?.(actualElement);
   }
 
   private applyCorrection(issue: IssueItem): void {
@@ -431,6 +440,8 @@ export class ProofreadingManager {
         this.sidebar?.setIssues([]);
       }
     }
+
+    this.debouncedProofread?.(actualElement);
   }
 
   private isEditableElement(element: HTMLElement): boolean {
