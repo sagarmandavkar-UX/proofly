@@ -34,19 +34,23 @@ export class CorrectionPopover extends HTMLElement {
     const margin = 10; // Minimum margin from viewport edge
 
     // Adjust x to keep popover within viewport (horizontal bounds)
-    if (x + rect.width > window.innerWidth) {
-      x = window.innerWidth - rect.width - margin;
+    const maxX = window.innerWidth - rect.width - margin;
+    const minX = margin;
+    if (x > maxX) {
+      x = maxX;
     }
-    if (x < margin) {
-      x = margin;
+    if (x < minX) {
+      x = minX;
     }
 
     // Adjust y to keep popover within viewport (vertical bounds)
-    if (y + rect.height > window.innerHeight + window.scrollY) {
-      y = window.innerHeight + window.scrollY - rect.height - margin;
+    const maxY = window.innerHeight - rect.height - margin;
+    const minY = margin;
+    if (y > maxY) {
+      y = maxY;
     }
-    if (y < window.scrollY + margin) {
-      y = window.scrollY + margin;
+    if (y < minY) {
+      y = minY;
     }
 
     this.style.left = `${x}px`;

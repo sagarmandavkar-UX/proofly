@@ -1,4 +1,4 @@
-import { CORRECTION_TYPE_COLORS } from '../../shared/utils/correction-colors.ts';
+import { CORRECTION_TYPES } from '../../shared/utils/correction-colors.ts';
 import { STORAGE_KEYS } from '../../shared/constants.ts';
 import { getStorageValue, onStorageChange } from '../../shared/utils/storage.ts';
 import type { UnderlineStyle } from '../../shared/types.ts';
@@ -162,8 +162,9 @@ export class ContentHighlighter {
       this.applyCorrection(element, appliedCorrection);
     });
 
-    const x = event.clientX;
-    const y = event.clientY + 20;
+    const correctionRect = this.getCorrectionBoundingRect(element, clickedCorrection);
+    const x = correctionRect ? correctionRect.left + correctionRect.width / 2 : event.clientX;
+    const y = correctionRect ? correctionRect.bottom + 8 : event.clientY + 20;
 
     console.log('Showing popover at:', x, y);
     this.popover.show(x, y);
@@ -310,6 +311,30 @@ export class ContentHighlighter {
     this.selectedHighlight.clear();
     this.selectedHighlight.add(range);
     setSelectedHighlightColors(this.selectedCorrectionRange.type);
+  }
+
+  private getCorrectionBoundingRect(element: HTMLElement, correction: ProofreadCorrection): DOMRect | null {
+    const textNode = this.getFirstTextNode(element);
+    if (!textNode) {
+      return null;
+    }
+
+    const range = createCorrectionRange(textNode, correction.startIndex, correction.endIndex);
+    if (!range) {
+      return null;
+    }
+
+    const rects = range.getClientRects();
+    if (rects.length > 0) {
+      return rects[0];
+    }
+
+    const rect = range.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+      return null;
+    }
+
+    return rect;
   }
 
   private applyCorrection(element: HTMLElement, correction: ProofreadCorrection): void {
@@ -562,7 +587,7 @@ function updateHighlightStyle(style: UnderlineStyle): void {
 
   const styleElement = ensureHighlightStyleElement();
   styleElement.textContent = ERROR_TYPES.map((errorType) => {
-    const colors = CORRECTION_TYPE_COLORS[errorType];
+    const colors = CORRECTION_TYPES[errorType];
     return `
     ::highlight(${errorType}) {
       background-color: transparent;
@@ -596,8 +621,8 @@ if ('highlights' in CSS) {
 }
 
 function getCorrectionColors(type?: string) {
-  const key = (type && (type in CORRECTION_TYPE_COLORS ? type : null)) || 'spelling';
-  return CORRECTION_TYPE_COLORS[key as keyof typeof CORRECTION_TYPE_COLORS];
+  const key = (type && (type in CORRECTION_TYPES ? type : null)) || 'spelling';
+  return CORRECTION_TYPES[key as keyof typeof CORRECTION_TYPES];
 }
 
 function setSelectedHighlightColors(type?: string): void {

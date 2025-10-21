@@ -172,3 +172,50 @@ input[type="checkbox"] {
 }
 
 /* Proofreading highlights are styled dynamically by ContentHighlighter */
+
+.correction-type-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.correction-type-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background: #ffffff;
+}
+
+.correction-type-option input[type="checkbox"] {
+  margin-top: 0.35rem;
+}
+
+.correction-type-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.correction-type-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.correction-type-description {
+  font-size: 0.8125rem;
+  color: #374151;
+}
+
+.correction-type-example {
+  display: block;
+  margin-top: 0.125rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}

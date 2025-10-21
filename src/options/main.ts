@@ -1,5 +1,5 @@
 import '../shared/components/model-downloader.ts';
-import { isModelReady, getStorageValue, setStorageValue } from '../shared/utils/storage.ts';
+import { isModelReady, getStorageValues, onStorageChange, setStorageValue } from '../shared/utils/storage.ts';
 import { STORAGE_KEYS } from '../shared/constants.ts';
 import { ContentHighlighter } from '../content/components/content-highlighter.ts';
 import {
@@ -9,6 +9,8 @@ import {
 } from '../services/proofreader.ts';
 import { debounce } from '../shared/utils/debounce.ts';
 import type { UnderlineStyle } from '../shared/types.ts';
+import { ALL_CORRECTION_TYPES, CORRECTION_TYPES } from '../shared/utils/correction-colors.ts';
+import type { CorrectionTypeKey } from '../shared/utils/correction-colors.ts';
 import './style.css';
 
 async function initOptions() {
@@ -33,8 +35,28 @@ async function initOptions() {
       location.reload();
     });
   } else {
-    const autoCorrect = await getStorageValue(STORAGE_KEYS.AUTO_CORRECT);
-    const underlineStyle = await getStorageValue(STORAGE_KEYS.UNDERLINE_STYLE);
+    const { autoCorrect, underlineStyle, enabledCorrectionTypes } = await getStorageValues([
+      STORAGE_KEYS.AUTO_CORRECT,
+      STORAGE_KEYS.UNDERLINE_STYLE,
+      STORAGE_KEYS.ENABLED_CORRECTION_TYPES,
+    ]);
+
+    const correctionTypeOptions = ALL_CORRECTION_TYPES.map((type) => {
+      const info = CORRECTION_TYPES[type];
+      const checked = enabledCorrectionTypes.includes(type) ? 'checked' : '';
+      return `
+            <label class="correction-type-option">
+              <input type="checkbox" name="correctionType" value="${type}" ${checked} />
+              <div class="correction-type-content">
+                <span class="correction-type-chip" style="border-color: ${info.border}; background: ${info.background}; color: ${info.color};">${info.label}</span>
+                <span class="correction-type-description">
+                  ${info.description}
+                  <span class="correction-type-example">${info.example}</span>
+                </span>
+              </div>
+            </label>
+          `;
+    }).join('');
 
     app.innerHTML = `
       <div class="options-container">
@@ -80,6 +102,14 @@ async function initOptions() {
             </div>
           </section>
 
+          <section class="settings-section">
+            <h2>Issue Types</h2>
+            <p class="section-description">Select which issues Proofly should flag while proofreading.</p>
+            <div class="correction-type-grid">
+              ${correctionTypeOptions}
+            </div>
+          </section>
+
           <section class="settings-section full-width">
             <h2>Live Test Area</h2>
             <p class="section-description">Try out the proofreading functionality below. Type or paste text with errors to see real-time corrections.</p>
@@ -115,17 +145,49 @@ async function initOptions() {
       await setStorageValue(STORAGE_KEYS.UNDERLINE_STYLE, value);
     });
 
+    const correctionTypeInputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="correctionType"]'));
+    correctionTypeInputs.forEach((input) => {
+      input.addEventListener('change', async (event) => {
+        const target = event.target as HTMLInputElement;
+        const selectedValues = correctionTypeInputs
+          .filter((checkbox) => checkbox.checked)
+          .map((checkbox) => checkbox.value as CorrectionTypeKey);
+
+        if (selectedValues.length === 0) {
+          target.checked = true;
+          return;
+        }
+
+        const ordered = ALL_CORRECTION_TYPES.filter((type) => selectedValues.includes(type));
+        await setStorageValue(STORAGE_KEYS.ENABLED_CORRECTION_TYPES, ordered);
+      });
+    });
+
     // Setup live test area proofreading
-    await setupLiveTestArea();
+    await setupLiveTestArea(enabledCorrectionTypes);
   }
 }
 
-async function setupLiveTestArea() {
+async function setupLiveTestArea(initialEnabledTypes: CorrectionTypeKey[]) {
   const editor = document.getElementById('liveTestEditor');
   if (!editor) return;
 
   const highlighter = new ContentHighlighter();
   let proofreaderService: ReturnType<typeof createProofreadingService> | null = null;
+  let enabledTypes = new Set<CorrectionTypeKey>(initialEnabledTypes);
+
+  const filterCorrections = (corrections: ProofreadCorrection[]): ProofreadCorrection[] => {
+    if (enabledTypes.size === 0) {
+      return [];
+    }
+
+    return corrections.filter((correction) => {
+      if (!correction.type) {
+        return true;
+      }
+      return enabledTypes.has(correction.type as CorrectionTypeKey);
+    });
+  };
 
   // Initialize proofreader
   try {
@@ -139,7 +201,7 @@ async function setupLiveTestArea() {
   }
 
   // Setup debounced proofreading on input
-  const debouncedProofread = debounce(async () => {
+  const runProofread = async () => {
     if (!proofreaderService || !editor) return;
 
     const text = editor.textContent || '';
@@ -152,8 +214,10 @@ async function setupLiveTestArea() {
     try {
       const result = await proofreaderService.proofread(text);
 
-      if (result.corrections.length > 0) {
-        highlighter.highlight(editor, result.corrections);
+      const filteredCorrections = filterCorrections(result.corrections);
+
+      if (filteredCorrections.length > 0) {
+        highlighter.highlight(editor, filteredCorrections);
       } else {
         highlighter.clearHighlights(editor);
       }
@@ -162,7 +226,9 @@ async function setupLiveTestArea() {
     } catch (error) {
       console.error('Proofreading failed:', error);
     }
-  }, 1000);
+  };
+
+  const debouncedProofread = debounce(runProofread, 1000);
 
   // Setup callback for when corrections are applied via popover
   highlighter.setOnCorrectionApplied(editor, (updatedCorrections) => {
@@ -172,6 +238,16 @@ async function setupLiveTestArea() {
   editor.addEventListener('input', () => {
     debouncedProofread();
   });
+
+  onStorageChange(
+    STORAGE_KEYS.ENABLED_CORRECTION_TYPES,
+    (newValue) => {
+      enabledTypes = new Set(newValue);
+      void runProofread();
+    }
+  );
+
+  await runProofread();
 
   console.log('Proofly: Live test area setup complete');
 }

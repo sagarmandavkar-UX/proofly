@@ -8,6 +8,7 @@
 
 import { STORAGE_KEYS, STORAGE_DEFAULTS } from '../constants.ts';
 import type { UnderlineStyle } from '../types.ts';
+import type { CorrectionTypeKey } from '../utils/correction-colors.ts';
 
 export interface StorageData {
   [STORAGE_KEYS.MODEL_DOWNLOADED]: boolean;
@@ -15,6 +16,7 @@ export interface StorageData {
   [STORAGE_KEYS.PROOFREADER_READY]: boolean;
   [STORAGE_KEYS.AUTO_CORRECT]: boolean;
   [STORAGE_KEYS.UNDERLINE_STYLE]: UnderlineStyle;
+  [STORAGE_KEYS.ENABLED_CORRECTION_TYPES]: CorrectionTypeKey[];
 }
 
 /**
@@ -23,6 +25,7 @@ export interface StorageData {
 const SYNC_KEYS = [
   STORAGE_KEYS.AUTO_CORRECT,
   STORAGE_KEYS.UNDERLINE_STYLE,
+  STORAGE_KEYS.ENABLED_CORRECTION_TYPES,
 ] as const;
 
 /**
@@ -42,7 +45,16 @@ export async function getStorageValue<K extends keyof StorageData>(
 ): Promise<StorageData[K]> {
   const storage = getStorageArea(key);
   const result = await storage.get(key);
-  return result[key] ?? STORAGE_DEFAULTS[key];
+  if (result[key] !== undefined) {
+    return Array.isArray(result[key])
+      ? [...result[key]] as StorageData[K]
+      : result[key];
+  }
+
+  const fallback = STORAGE_DEFAULTS[key];
+  return Array.isArray(fallback)
+    ? [...fallback] as StorageData[K]
+    : fallback;
 }
 
 /**
@@ -70,7 +82,18 @@ export async function getStorageValues<K extends keyof StorageData>(
   // Merge results with defaults
   for (const key of keys) {
     const result = SYNC_KEYS.includes(key as typeof SYNC_KEYS[number]) ? syncResult : localResult;
-    data[key] = result[key] ?? STORAGE_DEFAULTS[key];
+    const value = result[key];
+    if (value !== undefined) {
+      data[key] = Array.isArray(value)
+        ? [...value] as StorageData[typeof key]
+        : value;
+      continue;
+    }
+
+    const fallback = STORAGE_DEFAULTS[key];
+    data[key] = Array.isArray(fallback)
+      ? [...fallback] as StorageData[typeof key]
+      : fallback;
   }
 
   return data;
@@ -170,11 +193,15 @@ export async function initializeStorage(): Promise<void> {
   for (const [key, defaultValue] of Object.entries(STORAGE_DEFAULTS)) {
     if (SYNC_KEYS.includes(key as typeof SYNC_KEYS[number])) {
       if (!(key in syncValues)) {
-        syncUpdates[key as keyof StorageData] = defaultValue as never;
+        syncUpdates[key as keyof StorageData] = (Array.isArray(defaultValue)
+          ? [...defaultValue]
+          : defaultValue) as never;
       }
     } else {
       if (!(key in localValues)) {
-        localUpdates[key as keyof StorageData] = defaultValue as never;
+        localUpdates[key as keyof StorageData] = (Array.isArray(defaultValue)
+          ? [...defaultValue]
+          : defaultValue) as never;
       }
     }
   }

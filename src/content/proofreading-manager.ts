@@ -12,6 +12,9 @@ import type { IssuesSidebar, IssueItem } from './components/issues-sidebar.ts';
 import './components/correction-popover.ts';
 import type { CorrectionPopover } from './components/correction-popover.ts';
 import { logger } from "../services/logger.ts";
+import { getStorageValue, onStorageChange } from '../shared/utils/storage.ts';
+import { STORAGE_KEYS } from '../shared/constants.ts';
+import type { CorrectionTypeKey } from '../shared/utils/correction-colors.ts';
 
 export class ProofreadingManager {
   private highlighter = new ContentHighlighter();
@@ -28,6 +31,8 @@ export class ProofreadingManager {
   private debouncedProofread: ((element: HTMLElement) => void) | null = null;
   private activeCanvasHighlighter: TextareaCanvasHighlighter | null = null;
   private popoverHideCleanup: (() => void) | null = null;
+  private enabledCorrectionTypes = new Set<CorrectionTypeKey>();
+  private correctionTypeCleanup: (() => void) | null = null;
 
   async initialize(): Promise<void> {
     // Initialize proofreader service
@@ -48,6 +53,7 @@ export class ProofreadingManager {
     this.createPopover();
     this.setupContextMenuHandler();
     this.observeEditableElements();
+    await this.initializeCorrectionPreferences();
     logger.info('Proofly: Event listeners set up - ready for input!');
   }
 
@@ -239,12 +245,15 @@ export class ProofreadingManager {
 
       if (result.corrections && result.corrections.length > 0) {
         const trimmedLength = text.trimEnd().length;
-        const filteredCorrections = result.corrections.filter(correction =>
+        const trimmedCorrections = result.corrections.filter(correction =>
           correction.startIndex < trimmedLength
         );
 
+        const filteredCorrections = trimmedCorrections.filter((correction) => this.isCorrectionEnabled(correction));
+
         if (filteredCorrections.length === 0) {
           this.clearElementHighlights(element);
+          this.sidebar?.setIssues([]);
           return;
         }
 
@@ -279,6 +288,57 @@ export class ProofreadingManager {
     } catch (error) {
       logger.error({ error }, 'Proofly: Proofreading failed');
     }
+  }
+
+  private async initializeCorrectionPreferences(): Promise<void> {
+    const types = await getStorageValue(STORAGE_KEYS.ENABLED_CORRECTION_TYPES);
+    this.enabledCorrectionTypes = new Set(types);
+
+    if (this.correctionTypeCleanup) {
+      this.correctionTypeCleanup();
+    }
+
+    this.correctionTypeCleanup = onStorageChange(
+      STORAGE_KEYS.ENABLED_CORRECTION_TYPES,
+      (newValue) => {
+        this.enabledCorrectionTypes = new Set(newValue);
+        this.refreshCorrectionsForTrackedElements();
+      }
+    );
+  }
+
+  private refreshCorrectionsForTrackedElements(): void {
+    const elements = new Set<HTMLElement>();
+
+    this.elementCorrections.forEach((_value, key) => {
+      elements.add(key);
+    });
+
+    this.elementPreviousText.forEach((_value, key) => {
+      elements.add(key);
+    });
+
+    if (this.activeElement) {
+      elements.add(this.activeElement);
+    }
+
+    elements.forEach((element) => {
+      if (this.isEditableElement(element)) {
+        void this.proofreadElement(element);
+      }
+    });
+  }
+
+  private isCorrectionEnabled(correction: ProofreadCorrection): boolean {
+    if (this.enabledCorrectionTypes.size === 0) {
+      return false;
+    }
+
+    if (!correction.type) {
+      return true;
+    }
+
+    return this.enabledCorrectionTypes.has(correction.type as CorrectionTypeKey);
   }
 
   private highlightWithCanvas(element: HTMLTextAreaElement | HTMLInputElement, corrections: ProofreadCorrection[]): void {
@@ -597,5 +657,15 @@ export class ProofreadingManager {
     this.elementCanvasHighlighters.clear();
 
     this.elementPreviousText.clear();
+
+    if (this.popoverHideCleanup) {
+      this.popoverHideCleanup();
+      this.popoverHideCleanup = null;
+    }
+
+    if (this.correctionTypeCleanup) {
+      this.correctionTypeCleanup();
+      this.correctionTypeCleanup = null;
+    }
   }
 }
