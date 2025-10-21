@@ -12,6 +12,7 @@ node_modules
 ref
 docs
 dist
+dev
 release
 dist-ssr
 *.local

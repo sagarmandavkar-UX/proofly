@@ -5,11 +5,14 @@ import zip from 'vite-plugin-zip-pack'
 import manifest from './manifest.config.js'
 import { name, version } from './package.json'
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   resolve: {
     alias: {
       '@': `${path.resolve(__dirname, 'src')}`,
     },
+  },
+  build: {
+    outDir: command === 'serve' ? 'dev' : 'dist',
   },
   plugins: [
     crx({ manifest }),
@@ -23,4 +26,4 @@ export default defineConfig({
     },
   },
   logLevel: 'info',
-})
+}))
