@@ -151,6 +151,26 @@ export class ProofreadingManager {
 
     document.addEventListener('input', handleInput, true);
 
+    const handleFocus = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (this.isEditableElement(target)) {
+        const text = this.getElementText(target);
+        if (text && text.trim().length > 0) {
+          // Check if element has been proofread before
+          const hasCorrections = this.elementCorrections.has(target);
+          const hasPreviousText = this.elementPreviousText.has(target);
+
+          // Trigger proofreading if element has text but hasn't been proofread yet
+          if (!hasCorrections && !hasPreviousText) {
+            this.debouncedProofread?.(target);
+            this.elementPreviousText.set(target, text);
+          }
+        }
+      }
+    };
+
+    document.addEventListener('focus', handleFocus, true);
+
     this.observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         if (mutation.type === 'childList') {
