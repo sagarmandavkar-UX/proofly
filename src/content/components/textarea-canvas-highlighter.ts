@@ -1,4 +1,4 @@
-import { CORRECTION_TYPE_COLORS } from '../../shared/utils/correction-colors.ts';
+import { CORRECTION_TYPES } from '../../shared/utils/correction-colors.ts';
 import { getStorageValue } from '../../shared/utils/storage.ts';
 import { STORAGE_KEYS } from '../../shared/constants.ts';
 import type { UnderlineStyle } from '../../shared/types.ts';
@@ -281,7 +281,7 @@ export class TextareaCanvasHighlighter {
   }
 
   private drawBackground(x: number, y: number, width: number, height: number, type: string): void {
-    const colors = CORRECTION_TYPE_COLORS[type as keyof typeof CORRECTION_TYPE_COLORS] || CORRECTION_TYPE_COLORS.spelling;
+    const colors = CORRECTION_TYPES[type as keyof typeof CORRECTION_TYPES] || CORRECTION_TYPES.spelling;
 
     // Draw semi-transparent background
     this.ctx.fillStyle = colors.color;
@@ -291,7 +291,7 @@ export class TextareaCanvasHighlighter {
   }
 
   private drawUnderline(x: number, y: number, width: number, height: number, type: string): void {
-    const colors = CORRECTION_TYPE_COLORS[type as keyof typeof CORRECTION_TYPE_COLORS] || CORRECTION_TYPE_COLORS.spelling;
+    const colors = CORRECTION_TYPES[type as keyof typeof CORRECTION_TYPES] || CORRECTION_TYPES.spelling;
 
     this.ctx.strokeStyle = colors.color;
     this.ctx.lineWidth = 2;
