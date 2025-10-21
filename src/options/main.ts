@@ -8,6 +8,7 @@ import {
   createProofreadingService,
 } from '../services/proofreader.ts';
 import { debounce } from '../shared/utils/debounce.ts';
+import type { UnderlineStyle } from '../shared/types.ts';
 import './style.css';
 
 async function initOptions() {
@@ -33,6 +34,7 @@ async function initOptions() {
     });
   } else {
     const autoCorrect = await getStorageValue(STORAGE_KEYS.AUTO_CORRECT);
+    const underlineStyle = await getStorageValue(STORAGE_KEYS.UNDERLINE_STYLE);
 
     app.innerHTML = `
       <div class="options-container">
@@ -63,6 +65,21 @@ async function initOptions() {
             </div>
           </section>
 
+          <section class="settings-section">
+            <h2>Appearance</h2>
+            <div class="setting-item">
+              <div class="setting-info">
+                <label for="underlineStyle">Underline Style</label>
+                <p>Choose how errors are underlined</p>
+              </div>
+              <select id="underlineStyle">
+                <option value="solid" ${underlineStyle === 'solid' ? 'selected' : ''}>Solid</option>
+                <option value="wavy" ${underlineStyle === 'wavy' ? 'selected' : ''}>Wavy</option>
+                <option value="dotted" ${underlineStyle === 'dotted' ? 'selected' : ''}>Dotted</option>
+              </select>
+            </div>
+          </section>
+
           <section class="settings-section full-width">
             <h2>Live Test Area</h2>
             <p class="section-description">Try out the proofreading functionality below. Type or paste text with errors to see real-time corrections.</p>
@@ -90,6 +107,12 @@ async function initOptions() {
     autoCorrectCheckbox?.addEventListener('change', async (e) => {
       const checked = (e.target as HTMLInputElement).checked;
       await setStorageValue(STORAGE_KEYS.AUTO_CORRECT, checked);
+    });
+
+    const underlineStyleSelect = document.querySelector<HTMLSelectElement>('#underlineStyle');
+    underlineStyleSelect?.addEventListener('change', async (e) => {
+      const value = (e.target as HTMLSelectElement).value as UnderlineStyle;
+      await setStorageValue(STORAGE_KEYS.UNDERLINE_STYLE, value);
     });
 
     // Setup live test area proofreading

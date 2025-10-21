@@ -5,12 +5,14 @@
  */
 
 import { STORAGE_KEYS, STORAGE_DEFAULTS } from '../constants.ts';
+import type { UnderlineStyle } from '../types.ts';
 
 export interface StorageData {
   [STORAGE_KEYS.MODEL_DOWNLOADED]: boolean;
   [STORAGE_KEYS.MODEL_AVAILABILITY]: Availability;
   [STORAGE_KEYS.PROOFREADER_READY]: boolean;
   [STORAGE_KEYS.AUTO_CORRECT]: boolean;
+  [STORAGE_KEYS.UNDERLINE_STYLE]: UnderlineStyle;
 }
 
 /**

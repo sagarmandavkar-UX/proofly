@@ -53,7 +53,7 @@ Proofly is a privacy-first Chrome extension for proofreading that uses Chrome's 
 
 #### 2. Open Test Environment
 - Ensure test server is running: `python3 -m http.server 8080` (in project root)
-- Navigate to http://localhost:8080/test-page.html (local test page with input, textarea, and contenteditable)
+- Navigate to http://localhost:8080/test.html (local test page with input, textarea, and contenteditable)
 - Or use any other test page appropriate for the feature
 
 #### 3. Type Test Input
@@ -115,7 +115,7 @@ mcp__chrome-devtools__extension_get_logs({
 
 #### Quick Reference
 
-**Test Page**: http://localhost:8080/test-page.html
+**Test Page**: http://localhost:8080/test.html
 **Test Server**: `python3 -m http.server 8080` (runs in project root)
 **Extension ID**: oiaicmknhbpnhngdeppegnhobnleeolm
 **Manifest Config**: manifest.config.ts (not manifest.json)

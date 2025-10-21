@@ -1,4 +1,7 @@
 import { CORRECTION_TYPE_COLORS } from '../../shared/utils/correction-colors.ts';
+import { getStorageValue } from '../../shared/utils/storage.ts';
+import { STORAGE_KEYS } from '../../shared/constants.ts';
+import type { UnderlineStyle } from '../../shared/types.ts';
 
 class CanvasHighlighterElement extends HTMLElement {
   private shadow: ShadowRoot;
@@ -58,15 +61,16 @@ if (!customElements.get('prfly-canvas-highlighter')) {
 }
 
 export class TextareaCanvasHighlighter {
-  private textarea: HTMLTextAreaElement | HTMLInputElement;
-  private canvas: HTMLCanvasElement;
+  private readonly textarea: HTMLTextAreaElement | HTMLInputElement;
+  private readonly canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private corrections: ProofreadCorrection[] = [];
   private cleanup: Array<() => void> = [];
   private measureDiv: HTMLDivElement | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private clickedCorrection: ProofreadCorrection | null = null;
-  private highlighterElement: CanvasHighlighterElement;
+  private readonly highlighterElement: CanvasHighlighterElement;
+  private underlineStyle: UnderlineStyle = 'solid';
 
   constructor(textarea: HTMLTextAreaElement | HTMLInputElement) {
     this.textarea = textarea;
@@ -91,6 +95,8 @@ export class TextareaCanvasHighlighter {
     this.syncDimensions();
 
     this.setupEventListeners();
+
+    this.loadUnderlineStyle();
   }
 
   private setupEventListeners(): void {
@@ -280,25 +286,40 @@ export class TextareaCanvasHighlighter {
   private drawUnderline(x: number, y: number, width: number, height: number, type: string): void {
     const colors = CORRECTION_TYPE_COLORS[type as keyof typeof CORRECTION_TYPE_COLORS] || CORRECTION_TYPE_COLORS.spelling;
 
-    // Draw wavy underline
     this.ctx.strokeStyle = colors.color;
     this.ctx.lineWidth = 2;
-    this.ctx.beginPath();
+    this.ctx.imageSmoothingEnabled = false;
 
-    const waveHeight = 2;
-    const waveLength = 4;
-    const baseY = y + height - 1; // Position underline 2px lower (was -3, now -1)
+    const baseY = Math.floor(y + height + 1);
 
-    for (let i = 0; i <= width; i += waveLength) {
-      const waveY = baseY + (Math.sin(i / waveLength * Math.PI) * waveHeight);
-      if (i === 0) {
-        this.ctx.moveTo(x, waveY);
-      } else {
-        this.ctx.lineTo(x + i, waveY);
+    if (this.underlineStyle === 'solid') {
+      this.ctx.beginPath();
+      this.ctx.moveTo(Math.floor(x), baseY);
+      this.ctx.lineTo(Math.floor(x + width), baseY);
+      this.ctx.stroke();
+    } else if (this.underlineStyle === 'wavy') {
+      this.ctx.beginPath();
+      const waveHeight = 2;
+      const waveLength = 4;
+
+      for (let i = 0; i <= width; i++) {
+        const waveY = Math.floor(baseY + (Math.sin(i / waveLength * Math.PI) * waveHeight));
+        const posX = Math.floor(x + i);
+        if (i === 0) {
+          this.ctx.moveTo(posX, waveY);
+        } else {
+          this.ctx.lineTo(posX, waveY);
+        }
       }
+      this.ctx.stroke();
+    } else if (this.underlineStyle === 'dotted') {
+      this.ctx.setLineDash([2, 3]);
+      this.ctx.beginPath();
+      this.ctx.moveTo(Math.floor(x), baseY);
+      this.ctx.lineTo(Math.floor(x + width), baseY);
+      this.ctx.stroke();
+      this.ctx.setLineDash([]);
     }
-
-    this.ctx.stroke();
   }
 
   private getCharacterRanges(start: number, end: number): Array<{x: number, y: number, width: number, height: number}> {
@@ -479,6 +500,15 @@ export class TextareaCanvasHighlighter {
    */
   getTextarea(): HTMLTextAreaElement | HTMLInputElement {
     return this.textarea;
+  }
+
+  private async loadUnderlineStyle(): Promise<void> {
+    try {
+      this.underlineStyle = await getStorageValue(STORAGE_KEYS.UNDERLINE_STYLE);
+      this.redraw();
+    } catch (error) {
+      console.error('Failed to load underline style:', error);
+    }
   }
 
   destroy(): void {
