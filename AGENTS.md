@@ -175,33 +175,26 @@ mcp__chrome-devtools__navigate_page({
 })
 
 // 3. Fill test data via script evaluation
-mcp__chrome-devtools__evaluate_script({
-  function: `() => {
-    const textarea = document.querySelector('proofly-textarea');
-    if (textarea?.shadowRoot) {
-      const editor = textarea.shadowRoot.querySelector('[contenteditable="true"]');
-      editor.textContent = "Test text with errros";
-      editor.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-  }`
+mcp__chrome-devtools__fill_form({
+    elements: [
+        { uid: "71_3", value: "Text for input field" },
+        { uid: "71_5", value: "Text for textarea" }
+    ]
 })
 
 // 4. Check console for errors/logs
-mcp__chrome-devtools__list_console_messages()
-mcp__chrome-devtools__get_console_message({ msgid: 42 })
-
-// 5. Access extension logs
 mcp__chrome-devtools__extension_get_logs({
-  extensionId: "oiaicmknhbpnhngdeppegnhobnleeolm",
-  maxEntries: 100,
-  contextType: "all",
-  logLevel: "all"
+    extensionId: "oiaicmknhbpnhngdeppegnhobnleeolm",
+    maxEntries: 100,
+    contextType: "all",
+    logLevel: "all"
 })
 
 // 6. Verify DOM state
 mcp__chrome-devtools__take_snapshot()
 
 // 7. Verify specific elements or corrections appeared
+mcp__chrome-devtools__take_screenshot()
 ```
 
 **Key Principles**:
@@ -459,7 +452,7 @@ type Availability = "unavailable" | "downloadable" | "downloading" | "available"
 ### Correction Type Colors
 
 ```typescript
-// src/shared/constants/correction-colors.ts
+// src/shared/constants/correction-types.ts
 export const CORRECTION_TYPES = {
   spelling: { color: '#dc2626', background: '#fef2f2', border: '#fecaca', label: 'Spelling' },
   grammar: { color: '#2563eb', background: '#eff6ff', border: '#bfdbfe', label: 'Grammar' },

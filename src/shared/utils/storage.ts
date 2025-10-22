@@ -8,7 +8,7 @@
 
 import { STORAGE_KEYS, STORAGE_DEFAULTS } from '../constants.ts';
 import type { UnderlineStyle } from '../types.ts';
-import type { CorrectionTypeKey } from '../utils/correction-colors.ts';
+import type { CorrectionColorConfig, CorrectionTypeKey } from './correction-types.ts';
 
 export interface StorageData {
   [STORAGE_KEYS.MODEL_DOWNLOADED]: boolean;
@@ -17,6 +17,7 @@ export interface StorageData {
   [STORAGE_KEYS.AUTO_CORRECT]: boolean;
   [STORAGE_KEYS.UNDERLINE_STYLE]: UnderlineStyle;
   [STORAGE_KEYS.ENABLED_CORRECTION_TYPES]: CorrectionTypeKey[];
+  [STORAGE_KEYS.CORRECTION_COLORS]: CorrectionColorConfig;
 }
 
 /**
@@ -26,6 +27,7 @@ const SYNC_KEYS = [
   STORAGE_KEYS.AUTO_CORRECT,
   STORAGE_KEYS.UNDERLINE_STYLE,
   STORAGE_KEYS.ENABLED_CORRECTION_TYPES,
+  STORAGE_KEYS.CORRECTION_COLORS,
 ] as const;
 
 /**
@@ -46,15 +48,11 @@ export async function getStorageValue<K extends keyof StorageData>(
   const storage = getStorageArea(key);
   const result = await storage.get(key);
   if (result[key] !== undefined) {
-    return Array.isArray(result[key])
-      ? [...result[key]] as StorageData[K]
-      : result[key];
+    return cloneValue(result[key]) as StorageData[K];
   }
 
   const fallback = STORAGE_DEFAULTS[key];
-  return Array.isArray(fallback)
-    ? [...fallback] as StorageData[K]
-    : fallback;
+  return cloneValue(fallback) as StorageData[K];
 }
 
 /**
@@ -84,16 +82,12 @@ export async function getStorageValues<K extends keyof StorageData>(
     const result = SYNC_KEYS.includes(key as typeof SYNC_KEYS[number]) ? syncResult : localResult;
     const value = result[key];
     if (value !== undefined) {
-      data[key] = Array.isArray(value)
-        ? [...value] as StorageData[typeof key]
-        : value;
+      data[key] = cloneValue(value) as StorageData[typeof key];
       continue;
     }
 
     const fallback = STORAGE_DEFAULTS[key];
-    data[key] = Array.isArray(fallback)
-      ? [...fallback] as StorageData[typeof key]
-      : fallback;
+    data[key] = cloneValue(fallback) as StorageData[typeof key];
   }
 
   return data;
@@ -193,15 +187,11 @@ export async function initializeStorage(): Promise<void> {
   for (const [key, defaultValue] of Object.entries(STORAGE_DEFAULTS)) {
     if (SYNC_KEYS.includes(key as typeof SYNC_KEYS[number])) {
       if (!(key in syncValues)) {
-        syncUpdates[key as keyof StorageData] = (Array.isArray(defaultValue)
-          ? [...defaultValue]
-          : defaultValue) as never;
+        syncUpdates[key as keyof StorageData] = cloneValue(defaultValue) as never;
       }
     } else {
       if (!(key in localValues)) {
-        localUpdates[key as keyof StorageData] = (Array.isArray(defaultValue)
-          ? [...defaultValue]
-          : defaultValue) as never;
+        localUpdates[key as keyof StorageData] = cloneValue(defaultValue) as never;
       }
     }
   }
@@ -211,4 +201,20 @@ export async function initializeStorage(): Promise<void> {
     Object.keys(syncUpdates).length > 0 ? chrome.storage.sync.set(syncUpdates) : Promise.resolve(),
     Object.keys(localUpdates).length > 0 ? chrome.storage.local.set(localUpdates) : Promise.resolve(),
   ]);
+}
+
+function cloneValue<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return [...value] as T;
+  }
+
+  if (value && typeof value === 'object') {
+    try {
+      return structuredClone(value);
+    } catch {
+      return JSON.parse(JSON.stringify(value));
+    }
+  }
+
+  return value;
 }

@@ -9,8 +9,13 @@ import {
 } from '../services/proofreader.ts';
 import { debounce } from '../shared/utils/debounce.ts';
 import type { UnderlineStyle } from '../shared/types.ts';
-import { ALL_CORRECTION_TYPES, CORRECTION_TYPES } from '../shared/utils/correction-colors.ts';
-import type { CorrectionTypeKey } from '../shared/utils/correction-colors.ts';
+import {
+  ALL_CORRECTION_TYPES,
+  CORRECTION_TYPES,
+  buildCorrectionColorThemes,
+  setActiveCorrectionColors,
+} from '../shared/utils/correction-types.ts';
+import type { CorrectionColorConfig, CorrectionColorConfigEntry, CorrectionTypeKey } from '../shared/utils/correction-types.ts';
 import './style.css';
 
 async function initOptions() {
@@ -35,17 +40,22 @@ async function initOptions() {
       location.reload();
     });
   } else {
-    const { autoCorrect, underlineStyle, enabledCorrectionTypes } = await getStorageValues([
+    const { autoCorrect, underlineStyle, enabledCorrectionTypes, correctionColors } = await getStorageValues([
       STORAGE_KEYS.AUTO_CORRECT,
       STORAGE_KEYS.UNDERLINE_STYLE,
       STORAGE_KEYS.ENABLED_CORRECTION_TYPES,
+      STORAGE_KEYS.CORRECTION_COLORS,
     ]);
 
+    let correctionColorConfig: CorrectionColorConfig = structuredClone(correctionColors);
+    setActiveCorrectionColors(correctionColorConfig);
+    let currentCorrectionThemes = buildCorrectionColorThemes(correctionColorConfig);
+
     const correctionTypeOptions = ALL_CORRECTION_TYPES.map((type) => {
-      const info = CORRECTION_TYPES[type];
+      const info = currentCorrectionThemes[type];
       const checked = enabledCorrectionTypes.includes(type) ? 'checked' : '';
       return `
-            <label class="correction-type-option">
+            <label class="correction-type-option" data-type="${type}">
               <input type="checkbox" name="correctionType" value="${type}" ${checked} />
               <div class="correction-type-content">
                 <span class="correction-type-chip" style="border-color: ${info.border}; background: ${info.background}; color: ${info.color};">${info.label}</span>
@@ -53,6 +63,13 @@ async function initOptions() {
                   ${info.description}
                   <span class="correction-type-example">${info.example}</span>
                 </span>
+                <div class="correction-type-colors">
+                  <label>
+                    <span>Accent</span>
+                    <input type="color" value="${correctionColorConfig[type].color}" data-type="${type}" />
+                  </label>
+                  <button type="button" class="correction-color-reset" data-type="${type}">Reset</button>
+                </div>
               </div>
             </label>
           `;
@@ -163,18 +180,103 @@ async function initOptions() {
       });
     });
 
+    const updateOptionStyles = (type: CorrectionTypeKey) => {
+      const theme = currentCorrectionThemes[type];
+      const option = document.querySelector<HTMLLabelElement>(`.correction-type-option[data-type="${type}"]`);
+      if (!option) return;
+      const chip = option.querySelector<HTMLElement>('.correction-type-chip');
+      if (chip) {
+        chip.style.borderColor = theme.border;
+        chip.style.backgroundColor = theme.background;
+        chip.style.color = theme.color;
+      }
+    };
+
+    const colorInputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[type="color"][data-type]'));
+    colorInputs.forEach((input) => {
+      input.addEventListener('input', async (event) => {
+        const target = event.target as HTMLInputElement;
+        const type = target.dataset.type as CorrectionTypeKey | undefined;
+        if (!type) {
+          return;
+        }
+
+        const updatedEntry: CorrectionColorConfigEntry = {
+          color: target.value,
+        };
+
+        correctionColorConfig = {
+          ...correctionColorConfig,
+          [type]: updatedEntry,
+        };
+
+        setActiveCorrectionColors(correctionColorConfig);
+        currentCorrectionThemes = buildCorrectionColorThemes(correctionColorConfig);
+        updateOptionStyles(type);
+
+        await setStorageValue(STORAGE_KEYS.CORRECTION_COLORS, correctionColorConfig);
+      });
+    });
+
+    const resetButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('button.correction-color-reset[data-type]'));
+    resetButtons.forEach((button) => {
+      button.addEventListener('click', async () => {
+        const type = button.dataset.type as CorrectionTypeKey | undefined;
+        if (!type) return;
+
+        const defaultColor = CORRECTION_TYPES[type].color;
+        correctionColorConfig = {
+          ...correctionColorConfig,
+          [type]: { color: defaultColor },
+        };
+
+        const inputEl = document.querySelector<HTMLInputElement>(`input[type="color"][data-type="${type}"]`);
+        if (inputEl) {
+          inputEl.value = defaultColor;
+        }
+
+        setActiveCorrectionColors(correctionColorConfig);
+        currentCorrectionThemes = buildCorrectionColorThemes(correctionColorConfig);
+        updateOptionStyles(type);
+
+        await setStorageValue(STORAGE_KEYS.CORRECTION_COLORS, correctionColorConfig);
+      });
+    });
+
+    onStorageChange(
+      STORAGE_KEYS.CORRECTION_COLORS,
+      (newValue) => {
+        correctionColorConfig = structuredClone(newValue);
+        currentCorrectionThemes = buildCorrectionColorThemes(correctionColorConfig);
+        setActiveCorrectionColors(correctionColorConfig);
+
+        for (const type of ALL_CORRECTION_TYPES) {
+          updateOptionStyles(type);
+          const inputEl = document.querySelector<HTMLInputElement>(`input[type="color"][data-type="${type}"]`);
+          if (inputEl) {
+            inputEl.value = correctionColorConfig[type].color;
+          }
+        }
+      }
+    );
+
     // Setup live test area proofreading
-    await setupLiveTestArea(enabledCorrectionTypes);
+    await setupLiveTestArea(enabledCorrectionTypes, correctionColorConfig);
   }
 }
 
-async function setupLiveTestArea(initialEnabledTypes: CorrectionTypeKey[]) {
+async function setupLiveTestArea(initialEnabledTypes: CorrectionTypeKey[], initialColorConfig: CorrectionColorConfig) {
   const editor = document.getElementById('liveTestEditor');
   if (!editor) return;
 
   const highlighter = new ContentHighlighter();
   let proofreaderService: ReturnType<typeof createProofreadingService> | null = null;
   let enabledTypes = new Set<CorrectionTypeKey>(initialEnabledTypes);
+  let colorConfig = structuredClone(initialColorConfig);
+  let colorThemes = buildCorrectionColorThemes(colorConfig);
+
+  setActiveCorrectionColors(colorConfig);
+  highlighter.setCorrectionColors(colorThemes);
 
   const filterCorrections = (corrections: ProofreadCorrection[]): ProofreadCorrection[] => {
     if (enabledTypes.size === 0) {
@@ -243,6 +345,17 @@ async function setupLiveTestArea(initialEnabledTypes: CorrectionTypeKey[]) {
     STORAGE_KEYS.ENABLED_CORRECTION_TYPES,
     (newValue) => {
       enabledTypes = new Set(newValue);
+      void runProofread();
+    }
+  );
+
+  onStorageChange(
+    STORAGE_KEYS.CORRECTION_COLORS,
+    (newValue) => {
+      colorConfig = structuredClone(newValue);
+      colorThemes = buildCorrectionColorThemes(colorConfig);
+      setActiveCorrectionColors(colorConfig);
+      highlighter.setCorrectionColors(colorThemes);
       void runProofread();
     }
   );

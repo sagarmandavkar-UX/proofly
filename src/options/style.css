@@ -219,3 +219,42 @@ input[type="checkbox"] {
   font-size: 0.75rem;
   color: #6b7280;
 }
+
+.correction-type-colors {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.correction-type-colors label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: #4b5563;
+}
+
+.correction-type-colors input[type="color"] {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  padding: 0;
+  background: transparent;
+}
+
+.correction-color-reset {
+  padding: 0.35rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  background: #f9fafb;
+  font-size: 0.75rem;
+  color: #4b5563;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.correction-color-reset:hover {
+  background: #f3f4f6;
+}

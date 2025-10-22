@@ -1,4 +1,4 @@
-import { getCorrectionTypeColor } from '../../shared/utils/correction-colors.ts';
+import { getCorrectionTypeColor } from '../../shared/utils/correction-types.ts';
 
 export interface IssueItem {
   element: HTMLElement;

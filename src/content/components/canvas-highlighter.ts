@@ -1,4 +1,8 @@
-import { CORRECTION_TYPES } from '../../shared/utils/correction-colors.ts';
+import {
+  getActiveCorrectionColors,
+  type CorrectionColorTheme,
+  type CorrectionColorThemeMap,
+} from '../../shared/utils/correction-types.ts';
 import { getStorageValue } from '../../shared/utils/storage.ts';
 import { STORAGE_KEYS } from '../../shared/constants.ts';
 import type { UnderlineStyle } from '../../shared/types.ts';
@@ -60,7 +64,7 @@ if (!customElements.get('prfly-canvas-highlighter')) {
   customElements.define('prfly-canvas-highlighter', CanvasHighlighterElement);
 }
 
-export class TextareaCanvasHighlighter {
+export class CanvasHighlighter {
   private readonly textarea: HTMLTextAreaElement | HTMLInputElement;
   private readonly canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -71,6 +75,7 @@ export class TextareaCanvasHighlighter {
   private clickedCorrection: ProofreadCorrection | null = null;
   private readonly highlighterElement: CanvasHighlighterElement;
   private underlineStyle: UnderlineStyle = 'solid';
+  private correctionColors: CorrectionColorThemeMap = getActiveCorrectionColors();
 
   constructor(textarea: HTMLTextAreaElement | HTMLInputElement) {
     this.textarea = textarea;
@@ -97,6 +102,11 @@ export class TextareaCanvasHighlighter {
     this.setupEventListeners();
 
     this.loadUnderlineStyle();
+  }
+
+  setCorrectionColors(colors: CorrectionColorThemeMap): void {
+    this.correctionColors = structuredClone(colors);
+    this.redraw();
   }
 
   private setupEventListeners(): void {
@@ -253,6 +263,10 @@ export class TextareaCanvasHighlighter {
     }
   }
 
+  private getTheme(type: string): CorrectionColorTheme {
+    return this.correctionColors[type as keyof CorrectionColorThemeMap] || this.correctionColors.spelling;
+  }
+
   private redraw(): void {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
@@ -271,27 +285,25 @@ export class TextareaCanvasHighlighter {
         const x = range.x - bounds.minX;
         const y = range.y - bounds.minY;
 
+        const themeType = correction.type || 'spelling';
         if (isClicked) {
-          this.drawBackground(x, y, range.width, range.height, correction.type || 'spelling');
+          this.drawBackground(x, y, range.width, range.height, themeType);
         }
 
-        this.drawUnderline(x, y, range.width, range.height, correction.type || 'spelling');
+        this.drawUnderline(x, y, range.width, range.height, themeType);
       }
     }
   }
 
   private drawBackground(x: number, y: number, width: number, height: number, type: string): void {
-    const colors = CORRECTION_TYPES[type as keyof typeof CORRECTION_TYPES] || CORRECTION_TYPES.spelling;
+    const colors = this.getTheme(type);
 
-    // Draw semi-transparent background
-    this.ctx.fillStyle = colors.color;
-    this.ctx.globalAlpha = 0.15; // Low opacity for background
+    this.ctx.fillStyle = colors.background;
     this.ctx.fillRect(x, y, width, height);
-    this.ctx.globalAlpha = 1.0; // Reset alpha
   }
 
   private drawUnderline(x: number, y: number, width: number, height: number, type: string): void {
-    const colors = CORRECTION_TYPES[type as keyof typeof CORRECTION_TYPES] || CORRECTION_TYPES.spelling;
+    const colors = this.getTheme(type);
 
     this.ctx.strokeStyle = colors.color;
     this.ctx.lineWidth = 2;

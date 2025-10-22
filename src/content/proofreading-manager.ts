@@ -1,7 +1,7 @@
 import { debounce } from '../shared/utils/debounce.ts';
 import { ContentHighlighter } from './components/content-highlighter.ts';
 import { TextareaMirror } from './components/textarea-mirror.ts';
-import { TextareaCanvasHighlighter } from './components/textarea-canvas-highlighter.ts';
+import { CanvasHighlighter } from './components/canvas-highlighter.ts';
 import {
   createProofreader,
   createProofreaderAdapter,
@@ -12,9 +12,16 @@ import type { IssuesSidebar, IssueItem } from './components/issues-sidebar.ts';
 import './components/correction-popover.ts';
 import type { CorrectionPopover } from './components/correction-popover.ts';
 import { logger } from "../services/logger.ts";
-import { getStorageValue, onStorageChange } from '../shared/utils/storage.ts';
+import { getStorageValues, onStorageChange } from '../shared/utils/storage.ts';
 import { STORAGE_KEYS } from '../shared/constants.ts';
-import type { CorrectionTypeKey } from '../shared/utils/correction-colors.ts';
+import {
+  buildCorrectionColorThemes,
+  getActiveCorrectionColors,
+  setActiveCorrectionColors,
+  type CorrectionColorConfig,
+  type CorrectionColorThemeMap,
+  type CorrectionTypeKey,
+} from '../shared/utils/correction-types.ts';
 
 export class ProofreadingManager {
   private highlighter = new ContentHighlighter();
@@ -24,15 +31,17 @@ export class ProofreadingManager {
   private observer: MutationObserver | null = null;
   private elementCorrections = new Map<HTMLElement, ProofreadCorrection[]>();
   private elementMirrors = new Map<HTMLElement, TextareaMirror>();
-  private elementCanvasHighlighters = new Map<HTMLElement, TextareaCanvasHighlighter>();
+  private elementCanvasHighlighters = new Map<HTMLElement, CanvasHighlighter>();
   private proofreaderService: ReturnType<typeof createProofreadingService> | null = null;
   private elementPreviousText = new Map<HTMLElement, string>();
   private isApplyingCorrection = false;
   private debouncedProofread: ((element: HTMLElement) => void) | null = null;
-  private activeCanvasHighlighter: TextareaCanvasHighlighter | null = null;
+  private activeCanvasHighlighter: CanvasHighlighter | null = null;
   private popoverHideCleanup: (() => void) | null = null;
   private enabledCorrectionTypes = new Set<CorrectionTypeKey>();
   private correctionTypeCleanup: (() => void) | null = null;
+  private correctionColors: CorrectionColorThemeMap = getActiveCorrectionColors();
+  private correctionColorsCleanup: (() => void) | null = null;
 
   async initialize(): Promise<void> {
     // Initialize proofreader service
@@ -291,8 +300,18 @@ export class ProofreadingManager {
   }
 
   private async initializeCorrectionPreferences(): Promise<void> {
-    const types = await getStorageValue(STORAGE_KEYS.ENABLED_CORRECTION_TYPES);
-    this.enabledCorrectionTypes = new Set(types);
+    const { enabledCorrectionTypes, correctionColors } = await getStorageValues([
+      STORAGE_KEYS.ENABLED_CORRECTION_TYPES,
+      STORAGE_KEYS.CORRECTION_COLORS,
+    ]);
+
+    this.enabledCorrectionTypes = new Set(enabledCorrectionTypes);
+
+    const colorConfig: CorrectionColorConfig = structuredClone(correctionColors);
+    this.correctionColors = buildCorrectionColorThemes(colorConfig);
+    setActiveCorrectionColors(colorConfig);
+    this.highlighter.setCorrectionColors(this.correctionColors);
+    this.elementCanvasHighlighters.forEach((highlighter) => highlighter.setCorrectionColors(this.correctionColors));
 
     if (this.correctionTypeCleanup) {
       this.correctionTypeCleanup();
@@ -302,6 +321,22 @@ export class ProofreadingManager {
       STORAGE_KEYS.ENABLED_CORRECTION_TYPES,
       (newValue) => {
         this.enabledCorrectionTypes = new Set(newValue);
+        this.refreshCorrectionsForTrackedElements();
+      }
+    );
+
+    if (this.correctionColorsCleanup) {
+      this.correctionColorsCleanup();
+    }
+
+    this.correctionColorsCleanup = onStorageChange(
+      STORAGE_KEYS.CORRECTION_COLORS,
+      (newValue) => {
+        const updatedConfig: CorrectionColorConfig = structuredClone(newValue);
+        this.correctionColors = buildCorrectionColorThemes(updatedConfig);
+        setActiveCorrectionColors(updatedConfig);
+        this.highlighter.setCorrectionColors(this.correctionColors);
+        this.elementCanvasHighlighters.forEach((highlighter) => highlighter.setCorrectionColors(this.correctionColors));
         this.refreshCorrectionsForTrackedElements();
       }
     );
@@ -346,7 +381,7 @@ export class ProofreadingManager {
     let canvasHighlighter = this.elementCanvasHighlighters.get(element);
 
     if (!canvasHighlighter) {
-      canvasHighlighter = new TextareaCanvasHighlighter(element);
+      canvasHighlighter = new CanvasHighlighter(element);
       this.elementCanvasHighlighters.set(element, canvasHighlighter);
 
       const highlighterInstance = canvasHighlighter;
@@ -355,6 +390,7 @@ export class ProofreadingManager {
         this.activeCanvasHighlighter = highlighterInstance;
         this.showPopoverForCorrection(element, correction, x, y);
       });
+      canvasHighlighter.setCorrectionColors(this.correctionColors);
     }
 
     if (!canvasHighlighter) {
@@ -666,6 +702,11 @@ export class ProofreadingManager {
     if (this.correctionTypeCleanup) {
       this.correctionTypeCleanup();
       this.correctionTypeCleanup = null;
+    }
+
+    if (this.correctionColorsCleanup) {
+      this.correctionColorsCleanup();
+      this.correctionColorsCleanup = null;
     }
   }
 }

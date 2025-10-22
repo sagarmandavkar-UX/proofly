@@ -1,5 +1,5 @@
 import type { UnderlineStyle } from './types.ts';
-import { ALL_CORRECTION_TYPES } from './utils/correction-colors.ts';
+import { ALL_CORRECTION_TYPES, getDefaultCorrectionColorConfig } from './utils/correction-types.ts';
 
 /**
  * Storage keys for Chrome storage API
@@ -11,6 +11,7 @@ export const STORAGE_KEYS = {
   AUTO_CORRECT: 'autoCorrect',
   UNDERLINE_STYLE: 'underlineStyle',
   ENABLED_CORRECTION_TYPES: 'enabledCorrectionTypes',
+  CORRECTION_COLORS: 'correctionColors',
 } as const;
 
 /**
@@ -23,4 +24,5 @@ export const STORAGE_DEFAULTS = {
   [STORAGE_KEYS.AUTO_CORRECT]: true,
   [STORAGE_KEYS.UNDERLINE_STYLE]: 'solid' as UnderlineStyle,
   [STORAGE_KEYS.ENABLED_CORRECTION_TYPES]: ALL_CORRECTION_TYPES,
+  [STORAGE_KEYS.CORRECTION_COLORS]: getDefaultCorrectionColorConfig(),
 } as const;

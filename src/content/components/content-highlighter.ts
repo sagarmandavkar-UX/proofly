@@ -1,14 +1,13 @@
-import { CORRECTION_TYPES } from '../../shared/utils/correction-colors.ts';
+import {
+  getActiveCorrectionColors,
+  type CorrectionColorThemeMap,
+} from '../../shared/utils/correction-types.ts';
 import { STORAGE_KEYS } from '../../shared/constants.ts';
 import { getStorageValue, onStorageChange } from '../../shared/utils/storage.ts';
 import type { UnderlineStyle } from '../../shared/types.ts';
 import './correction-popover.ts';
 import type { CorrectionPopover } from './correction-popover.ts';
-
-export interface HighlightableElement {
-  element: HTMLElement;
-  originalText: string;
-}
+import {logger} from "~/services/logger.ts";
 
 const ERROR_TYPES = [
   'spelling',
@@ -34,6 +33,8 @@ export class ContentHighlighter {
   private selectedElement: HTMLElement | null = null;
   private selectedCorrectionRange: { start: number; end: number; type?: string } | null = null;
   private popoverHideCleanup: (() => void) | null = null;
+  private correctionColors: CorrectionColorThemeMap = getActiveCorrectionColors();
+  private currentUnderlineStyle: UnderlineStyle = 'solid';
 
   constructor() {
     this.initializeHighlights();
@@ -49,9 +50,17 @@ export class ContentHighlighter {
     this.applyCorrectionCallbacks.set(element, callback);
   }
 
+  setCorrectionColors(colors: CorrectionColorThemeMap): void {
+    this.correctionColors = structuredClone(colors);
+    this.applyHighlightStyles();
+    if (this.selectedCorrectionRange) {
+      setSelectedHighlightColors(this.selectedCorrectionRange.type, this.correctionColors);
+    }
+  }
+
   private initializeHighlights(): void {
     if (!('highlights' in CSS)) {
-      console.warn('CSS Custom Highlights API not supported');
+      logger.warn('CSS Custom Highlights API not supported');
       return;
     }
 
@@ -70,14 +79,24 @@ export class ContentHighlighter {
       return;
     }
 
-    updateHighlightStyle(await loadUnderlineStyle());
+    this.currentUnderlineStyle = await loadUnderlineStyle();
+    this.applyHighlightStyles();
 
     this.underlineStyleCleanup = onStorageChange(
       STORAGE_KEYS.UNDERLINE_STYLE,
       (newValue) => {
-        updateHighlightStyle(newValue);
+        this.currentUnderlineStyle = newValue;
+        this.applyHighlightStyles();
       }
     );
+  }
+
+  private applyHighlightStyles(): void {
+    if (!('highlights' in CSS)) {
+      return;
+    }
+
+    updateHighlightStyle(this.currentUnderlineStyle, this.correctionColors);
   }
 
   private initializePopover(): void {
@@ -129,28 +148,32 @@ export class ContentHighlighter {
 
   private handleElementClick(element: HTMLElement, event: MouseEvent): void {
     if (!this.popover) {
-      console.warn('Popover not initialized');
+      logger.warn('Popover not initialized');
       return;
     }
 
     const corrections = this.highlightedElements.get(element);
     if (!corrections || corrections.length === 0) {
-      console.log('No corrections found for element');
+      logger.info('No corrections found for element');
       return;
     }
 
     // Find which correction was clicked using CSS.highlights API
     const clickedCorrection = this.findCorrectionAtPoint(element, event.clientX, event.clientY, corrections);
 
-    console.log('Click detected at coordinates:', event.clientX, event.clientY);
-    console.log('Available corrections:', corrections);
-    console.log('Found correction:', clickedCorrection);
+    logger.info({
+      clientX: event.clientX,
+      clientY: event.clientY
+    },'Click detected at coordinates:');
+
+    logger.info(corrections, 'Available corrections');
+    logger.info(clickedCorrection, 'Found correction');
 
     if (!clickedCorrection) {
       try {
         this.popover.hidePopover();
       } catch (e) {
-        console.warn('Failed to hide popover:', e);
+        logger.warn({ error:  e },'Failed to hide popover');
       }
       this.clearSelectedCorrection();
       return;
@@ -166,7 +189,7 @@ export class ContentHighlighter {
     const x = correctionRect ? correctionRect.left + correctionRect.width / 2 : event.clientX;
     const y = correctionRect ? correctionRect.bottom + 8 : event.clientY + 20;
 
-    console.log('Showing popover at:', x, y);
+    logger.info({ x, y }, 'Showing popover at');
     this.popover.show(x, y);
   }
 
@@ -200,7 +223,7 @@ export class ContentHighlighter {
     // Get the text node within the element
     const textNode = this.getFirstTextNode(element);
     if (!textNode || !textNode.textContent) {
-      console.log('No text node found in element');
+      logger.info('No text node found in element');
       return null;
     }
 
@@ -233,8 +256,8 @@ export class ContentHighlighter {
       }
     }
 
-    console.log('Closest character offset:', closestOffset, 'at distance:', minDistance);
-    console.log('Looking for correction at offset', closestOffset, 'in', corrections.length, 'corrections');
+    logger.info(`Closest character offset ${closestOffset} at distance ${minDistance}`);
+    logger.info(`Looking for correction at offset ${closestOffset} in ${corrections.length} corrections`);
 
     // Find correction that contains this offset
     const found = corrections.find(
@@ -242,10 +265,10 @@ export class ContentHighlighter {
     );
 
     if (found) {
-      console.log('Found correction:', found);
+      logger.info({found}, 'Found correction');
     } else {
-      console.log('No correction found at offset', closestOffset);
-      console.log('Available correction ranges:', corrections.map(c => `[${c.startIndex}-${c.endIndex}]`).join(', '));
+      logger.info({closestOffset},'No correction found at offset');
+      logger.info({ correctionRanges: corrections.map(c => `[${c.startIndex}-${c.endIndex}]`).join(', ')},'Available correction ranges');
     }
 
     return found || null;
@@ -274,7 +297,7 @@ export class ContentHighlighter {
       end: correction.endIndex,
       type: correction.type,
     };
-    setSelectedHighlightColors(correction.type);
+    setSelectedHighlightColors(correction.type, this.correctionColors);
   }
 
   private clearSelectedCorrection(): void {
@@ -310,7 +333,7 @@ export class ContentHighlighter {
 
     this.selectedHighlight.clear();
     this.selectedHighlight.add(range);
-    setSelectedHighlightColors(this.selectedCorrectionRange.type);
+    setSelectedHighlightColors(this.selectedCorrectionRange.type, this.correctionColors);
   }
 
   private getCorrectionBoundingRect(element: HTMLElement, correction: ProofreadCorrection): DOMRect | null {
@@ -405,14 +428,6 @@ export class ContentHighlighter {
     }
   }
 
-  getCorrections(element: HTMLElement): ProofreadCorrection[] {
-    return this.highlightedElements.get(element) || [];
-  }
-
-  getAllHighlightedElements(): HTMLElement[] {
-    return Array.from(this.highlightedElements.keys());
-  }
-
   private isEditableElement(element: HTMLElement): boolean {
     const tagName = element.tagName.toLowerCase();
 
@@ -443,7 +458,7 @@ export class ContentHighlighter {
     const tagName = element.tagName.toLowerCase();
 
     if (tagName === 'textarea' || tagName === 'input') {
-      console.warn('CSS Custom Highlights API does not support input/textarea elements');
+      logger.warn('CSS Custom Highlights API does not support input/textarea elements');
       return;
     }
 
@@ -477,7 +492,7 @@ export class ContentHighlighter {
           highlight.add(range);
         }
       } catch (error) {
-        console.warn('Failed to create highlight range:', error);
+        logger.warn(error, 'Failed to create highlight range');
       }
     }
 
@@ -562,6 +577,7 @@ export class ContentHighlighter {
     this.clearSelectedCorrection();
   }
 }
+
 const HIGHLIGHT_STYLE_ID = 'prfly-highlight-style';
 let highlightStyleElement: HTMLStyleElement | null = null;
 
@@ -580,19 +596,19 @@ function ensureHighlightStyleElement(): HTMLStyleElement {
   return highlightStyleElement;
 }
 
-function updateHighlightStyle(style: UnderlineStyle): void {
+function updateHighlightStyle(style: UnderlineStyle, colors: CorrectionColorThemeMap): void {
   if (!('highlights' in CSS)) {
     return;
   }
 
   const styleElement = ensureHighlightStyleElement();
   styleElement.textContent = ERROR_TYPES.map((errorType) => {
-    const colors = CORRECTION_TYPES[errorType];
+    const theme = colors[errorType];
     return `
     ::highlight(${errorType}) {
       background-color: transparent;
       text-decoration: underline;
-      text-decoration-color: ${colors.color};
+      text-decoration-color: ${theme.color};
       text-decoration-thickness: 2px;
       text-decoration-style: ${style};
     }`;
@@ -611,24 +627,19 @@ async function loadUnderlineStyle(): Promise<UnderlineStyle> {
   try {
     return await getStorageValue(STORAGE_KEYS.UNDERLINE_STYLE);
   } catch (error) {
-    console.error('Failed to load underline style for highlights', error);
+    logger.error(error, 'Failed to load underline style for highlights');
     return 'solid';
   }
 }
 
 if ('highlights' in CSS) {
-  updateHighlightStyle('solid');
+  updateHighlightStyle('solid', getActiveCorrectionColors());
 }
 
-function getCorrectionColors(type?: string) {
-  const key = (type && (type in CORRECTION_TYPES ? type : null)) || 'spelling';
-  return CORRECTION_TYPES[key as keyof typeof CORRECTION_TYPES];
-}
-
-function setSelectedHighlightColors(type?: string): void {
-  const colors = getCorrectionColors(type);
-  document.documentElement.style.setProperty('--prfly-selected-highlight-bg', colors.background);
-  document.documentElement.style.setProperty('--prfly-selected-highlight-color', colors.color);
+function setSelectedHighlightColors(type: string | undefined, colors: CorrectionColorThemeMap): void {
+  const theme = type ? colors[type as keyof CorrectionColorThemeMap] || colors.spelling : colors.spelling;
+  document.documentElement.style.setProperty('--prfly-selected-highlight-bg', theme.background);
+  document.documentElement.style.setProperty('--prfly-selected-highlight-color', theme.color);
 }
 
 function clearSelectedHighlightColors(): void {
@@ -643,7 +654,7 @@ function createCorrectionRange(textNode: Text, start: number, end: number): Rang
     range.setEnd(textNode, end);
     return range;
   } catch (error) {
-    console.warn('Failed to create selected correction range:', error);
+    logger.warn(error,'Failed to create selected correction range:');
     return null;
   }
 }
