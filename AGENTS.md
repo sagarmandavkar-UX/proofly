@@ -460,7 +460,7 @@ type Availability = "unavailable" | "downloadable" | "downloading" | "available"
 
 ```typescript
 // src/shared/constants/correction-colors.ts
-export const CORRECTION_TYPE_COLORS = {
+export const CORRECTION_TYPES = {
   spelling: { color: '#dc2626', background: '#fef2f2', border: '#fecaca', label: 'Spelling' },
   grammar: { color: '#2563eb', background: '#eff6ff', border: '#bfdbfe', label: 'Grammar' },
   punctuation: { color: '#7c3aed', background: '#f5f3ff', border: '#ddd6fe', label: 'Punctuation' },
@@ -470,8 +470,8 @@ export const CORRECTION_TYPE_COLORS = {
 } as const;
 
 export function getCorrectionTypeColor(type?: CorrectionType) {
-  if (!type) return CORRECTION_TYPE_COLORS.spelling;
-  return CORRECTION_TYPE_COLORS[type] || CORRECTION_TYPE_COLORS.spelling;
+  if (!type) return CORRECTION_TYPES.spelling;
+  return CORRECTION_TYPES[type] || CORRECTION_TYPES.spelling;
 }
 ```
 
