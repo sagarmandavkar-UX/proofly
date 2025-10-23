@@ -59,6 +59,14 @@ main {
   grid-column: 1 / -1;
 }
 
+.settings-section.live-test-area {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06);
+  margin-bottom: 0;
+}
+
 .settings-section h2 {
   font-size: 1.125rem;
   margin: 0 0 1rem 0;
@@ -332,4 +340,15 @@ input[type="checkbox"] {
   text-decoration: underline;
   text-decoration-style: dotted;
   text-decoration-thickness: 2px;
+}
+
+.live-test-editor {
+  min-height: 80px;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  font-family: monospace;
+  font-size: 14px;
+  line-height: 1.5;
 }

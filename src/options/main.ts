@@ -157,14 +157,14 @@ async function initOptions() {
             </div>
           </section>
 
-          <section class="settings-section full-width">
+          <section class="settings-section full-width live-test-area">
             <h2>Live Test Area</h2>
             <p class="section-description">Try out the proofreading functionality below. Type or paste text with errors to see real-time corrections.</p>
             <div
               id="liveTestEditor"
+              class="live-test-editor"
               contenteditable="true"
               spellcheck="false"
-              style="min-height: 200px; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px; background: white; font-family: monospace; font-size: 14px; line-height: 1.5;"
               data-placeholder="Start typing to check for errors..."
             ></div>
           </section>
