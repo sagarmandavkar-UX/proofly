@@ -15,8 +15,15 @@ import {
   buildCorrectionColorThemes,
   setActiveCorrectionColors,
 } from '../shared/utils/correction-types.ts';
-import type { CorrectionColorConfig, CorrectionColorConfigEntry, CorrectionTypeKey } from '../shared/utils/correction-types.ts';
+import type {
+  CorrectionColorConfig,
+  CorrectionColorConfigEntry,
+  CorrectionTypeKey,
+} from '../shared/utils/correction-types.ts';
 import './style.css';
+import { logger}  from "../services/logger.ts";
+
+const LIVE_TEST_SAMPLE_TEXT = `This are a radnom text with a few classic common, and typicla typso and grammar issus. the Proofreader API hopefuly finds them all, lets see. Getting in the bus yea.`;
 
 async function initOptions() {
   const app = document.querySelector<HTMLDivElement>('#app')!;
@@ -51,7 +58,32 @@ async function initOptions() {
     setActiveCorrectionColors(correctionColorConfig);
     let currentCorrectionThemes = buildCorrectionColorThemes(correctionColorConfig);
 
-    const correctionTypeOptions = ALL_CORRECTION_TYPES.map((type) => {
+    const UNDERLINE_STYLE_TYPE: Record<UnderlineStyle, CorrectionTypeKey> = {
+      solid: 'spelling',
+      wavy: 'grammar',
+      dotted: 'punctuation',
+    };
+
+    const underlineStyleOptions = (
+      [
+        { value: 'solid' as UnderlineStyle, label: 'Solid', sample: 'Correct spelling' },
+        { value: 'wavy' as UnderlineStyle, label: 'Wavy', sample: 'Grammar alert' },
+        { value: 'dotted' as UnderlineStyle, label: 'Dotted', sample: 'Punctuation check' },
+      ]
+    ).map(({ value, label, sample }) => {
+      const checked = underlineStyle === value ? 'checked' : '';
+      return `
+            <label class="underline-style-option" data-style="${value}">
+              <input type="radio" name="underlineStyle" value="${value}" ${checked} />
+              <div class="underline-style-visual">
+                <span class="underline-style-label">${label}</span>
+                <span class="underline-style-sample underline-style-sample--${value}" data-style-preview="${value}">${sample}</span>
+              </div>
+            </label>
+          `;
+    }).join('');
+
+    const correctionTypeOptions = ALL_CORRECTION_TYPES.map((type: CorrectionTypeKey) => {
       const info = currentCorrectionThemes[type];
       const checked = enabledCorrectionTypes.includes(type) ? 'checked' : '';
       return `
@@ -111,11 +143,9 @@ async function initOptions() {
                 <label for="underlineStyle">Underline Style</label>
                 <p>Choose how errors are underlined</p>
               </div>
-              <select id="underlineStyle">
-                <option value="solid" ${underlineStyle === 'solid' ? 'selected' : ''}>Solid</option>
-                <option value="wavy" ${underlineStyle === 'wavy' ? 'selected' : ''}>Wavy</option>
-                <option value="dotted" ${underlineStyle === 'dotted' ? 'selected' : ''}>Dotted</option>
-              </select>
+              <div class="underline-style-options">
+                ${underlineStyleOptions}
+              </div>
             </div>
           </section>
 
@@ -150,16 +180,35 @@ async function initOptions() {
       </div>
     `;
 
+    const liveTestEditor = document.querySelector<HTMLDivElement>('#liveTestEditor');
+    if (liveTestEditor) {
+      liveTestEditor.textContent = LIVE_TEST_SAMPLE_TEXT;
+    }
+
     const autoCorrectCheckbox = document.querySelector<HTMLInputElement>('#autoCorrect');
     autoCorrectCheckbox?.addEventListener('change', async (e) => {
       const checked = (e.target as HTMLInputElement).checked;
       await setStorageValue(STORAGE_KEYS.AUTO_CORRECT, checked);
     });
 
-    const underlineStyleSelect = document.querySelector<HTMLSelectElement>('#underlineStyle');
-    underlineStyleSelect?.addEventListener('change', async (e) => {
-      const value = (e.target as HTMLSelectElement).value as UnderlineStyle;
-      await setStorageValue(STORAGE_KEYS.UNDERLINE_STYLE, value);
+    const updateUnderlinePreviewStyles = () => {
+      (['solid', 'wavy', 'dotted'] as UnderlineStyle[]).forEach((style) => {
+        const preview = document.querySelector<HTMLElement>(`.underline-style-sample[data-style-preview="${style}"]`);
+        if (!preview) return;
+        const theme = currentCorrectionThemes[UNDERLINE_STYLE_TYPE[style]];
+        preview.style.setProperty('text-decoration-color', theme.color);
+      });
+    };
+
+    updateUnderlinePreviewStyles();
+
+    const underlineRadios = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="underlineStyle"]'));
+    underlineRadios.forEach((radio) => {
+      radio.addEventListener('change', async () => {
+        if (radio.checked) {
+          await setStorageValue(STORAGE_KEYS.UNDERLINE_STYLE, radio.value as UnderlineStyle);
+        }
+      });
     });
 
     const correctionTypeInputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="correctionType"]'));
@@ -213,6 +262,7 @@ async function initOptions() {
         setActiveCorrectionColors(correctionColorConfig);
         currentCorrectionThemes = buildCorrectionColorThemes(correctionColorConfig);
         updateOptionStyles(type);
+        updateUnderlinePreviewStyles();
 
         await setStorageValue(STORAGE_KEYS.CORRECTION_COLORS, correctionColorConfig);
       });
@@ -238,6 +288,7 @@ async function initOptions() {
         setActiveCorrectionColors(correctionColorConfig);
         currentCorrectionThemes = buildCorrectionColorThemes(correctionColorConfig);
         updateOptionStyles(type);
+        updateUnderlinePreviewStyles();
 
         await setStorageValue(STORAGE_KEYS.CORRECTION_COLORS, correctionColorConfig);
       });
@@ -257,6 +308,7 @@ async function initOptions() {
             inputEl.value = correctionColorConfig[type].color;
           }
         }
+        updateUnderlinePreviewStyles();
       }
     );
 
@@ -296,9 +348,9 @@ async function setupLiveTestArea(initialEnabledTypes: CorrectionTypeKey[], initi
     const proofreader = await createProofreader();
     const adapter = createProofreaderAdapter(proofreader);
     proofreaderService = createProofreadingService(adapter);
-    console.log('Proofly: Proofreader initialized for live test area');
+    logger.info('Proofreader initialized for live test area');
   } catch (error) {
-    console.error('Failed to initialize proofreader:', error);
+    logger.error({error}, 'Failed to initialize proofreader');
     return;
   }
 
@@ -324,9 +376,9 @@ async function setupLiveTestArea(initialEnabledTypes: CorrectionTypeKey[], initi
         highlighter.clearHighlights(editor);
       }
 
-      console.log(`Proofly: Found ${result.corrections.length} corrections`);
+      logger.info(`Found ${result.corrections.length} corrections`);
     } catch (error) {
-      console.error('Proofreading failed:', error);
+      logger.error({error}, 'Proofreading failed');
     }
   };
 
@@ -334,7 +386,7 @@ async function setupLiveTestArea(initialEnabledTypes: CorrectionTypeKey[], initi
 
   // Setup callback for when corrections are applied via popover
   highlighter.setOnCorrectionApplied(editor, (updatedCorrections) => {
-    console.log(`Proofly: Correction applied, ${updatedCorrections.length} remaining`);
+    logger.info(`Correction applied, ${updatedCorrections.length} remaining`);
   });
 
   editor.addEventListener('input', () => {
@@ -362,7 +414,7 @@ async function setupLiveTestArea(initialEnabledTypes: CorrectionTypeKey[], initi
 
   await runProofread();
 
-  console.log('Proofly: Live test area setup complete');
+  logger.info('Live test area setup complete');
 }
 
 initOptions();
