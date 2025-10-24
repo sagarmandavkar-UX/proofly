@@ -32,16 +32,16 @@ export function getExtensionContext(): ExtensionContext {
   if (typeof window !== 'undefined' && window.location) {
     const url = window.location.href
     if (url.includes('chrome-extension://') || url.includes('moz-extension://')) {
-      if (url.includes('popup.html')) {
+      if (url.includes('popup')) {
         return 'popup'
       }
-      if (url.includes('options.html')) {
+      if (url.includes('options')) {
         return 'options'
       }
-      if (url.includes('sidepanel.html')) {
+      if (url.includes('sidepanel')) {
         return 'sidebar'
       }
-      if (url.includes('devtools.html')) {
+      if (url.includes('devtools')) {
         return 'devtools'
       }
     }
