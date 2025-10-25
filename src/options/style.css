@@ -8,6 +8,26 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  --option-color-text-primary: #111827;
+  --option-color-text-secondary: #6b7280;
+  --option-color-card-bg: #ffffff;
+  --option-color-card-border: #e5e7eb;
+  --option-color-card-ring: rgba(79, 70, 229, 0.1);
+  --option-color-button-bg: #4f46e5;
+  --option-color-button-border: #4f46e5;
+  --option-color-button-hover-bg: #4338ca;
+  --option-color-button-hover-border: #4338ca;
+  --option-color-button-text: #ffffff;
+  --option-color-reset-border: #d1d5db;
+  --option-color-neutral-bg: #f3f4f6;
+  --option-color-warning-bg: #f97316;
+  --option-color-warning-border: #ea580c;
+  --option-color-surface-muted: #f9fafb;
+  --option-color-text-muted: #374151;
+  --option-color-text-tertiary: #4b5563;
+  --option-color-focus-border: #4f46e5;
+  --option-color-focus-ring: rgba(79, 70, 229, 0.1);
 }
 
 body {
@@ -24,7 +44,7 @@ body {
 .options-container {
   max-width: 800px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 2rem 2rem 0;
 }
 
 header {
@@ -34,11 +54,11 @@ header {
 header h1 {
   font-size: 2rem;
   margin: 0 0 0.5rem 0;
-  color: #111827;
+  color: var(--option-color-text-primary);
 }
 
 header p {
-  color: #6b7280;
+  color: var(--option-color-text-secondary);
   margin: 0;
 }
 
@@ -49,10 +69,12 @@ main {
 }
 
 .settings-section {
-  background: #ffffff;
+  display: grid;
+  align-content: start;
+  background: var(--option-color-card-bg);
   border-radius: 0.5rem;
   padding: 1.5rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--option-color-card-border);
 }
 
 .settings-section.full-width {
@@ -63,21 +85,28 @@ main {
   position: sticky;
   bottom: 0;
   z-index: 10;
-  box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 0 10px 6px rgb(67 67 67 / 30%), 0 0 20px 0 rgb(206 206 206);
   margin-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .settings-section h2 {
   font-size: 1.125rem;
-  margin: 0 0 1rem 0;
-  color: #111827;
+  margin: 0;
+  color: var(--option-color-text-primary);
 }
 
 .section-description {
   margin: 0 0 1rem 0;
-  color: #6b7280;
+  color: var(--option-color-text-secondary);
   font-size: 0.875rem;
   line-height: 1.5;
+}
+
+.section-items {
+  display: grid;
+  gap: 1rem;
 }
 
 .status-card {
@@ -114,11 +143,11 @@ main {
 }
 
 .setting-item {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  justify-content: stretch;
   align-items: center;
   padding: 1rem;
-  background: #f9fafb;
+  background: var(--option-color-surface-muted);
   border-radius: 0.375rem;
 }
 
@@ -129,7 +158,7 @@ main {
 .setting-info label {
   display: block;
   font-weight: 500;
-  color: #111827;
+  color: var(--option-color-text-primary);
   margin-bottom: 0.25rem;
   cursor: pointer;
 }
@@ -137,18 +166,18 @@ main {
 .setting-info p {
   margin: 0;
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--option-color-text-secondary);
 }
 
 .about-card {
   padding: 1rem;
-  background: #f9fafb;
+  background: var(--option-color-surface-muted);
   border-radius: 0.375rem;
 }
 
 .about-card p {
   margin: 0.5rem 0;
-  color: #374151;
+  color: var(--option-color-text-muted);
   font-size: 0.875rem;
 }
 
@@ -163,8 +192,8 @@ main {
 /* Live Test Editor */
 #liveTestEditor:focus {
   outline: none;
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  border-color: var(--option-color-focus-border);
+  box-shadow: 0 0 0 3px var(--option-color-focus-ring);
 }
 
 #liveTestEditor:empty:before {
@@ -176,44 +205,117 @@ main {
 /* Proofreading highlights are styled dynamically by ContentHighlighter */
 
 .correction-type-grid {
-  display: grid;
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
 }
 
-prfly-checkbox.correction-type-option {
+prfly-checkbox.option-card {
   display: block;
+  height: 100%;
 }
 
-prfly-checkbox.correction-type-option::part(container) {
+prfly-checkbox.option-card::part(container) {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
   padding: 0.75rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--option-color-card-border);
   border-radius: 0.5rem;
-  background: #ffffff;
+  background: var(--option-color-card-bg);
   cursor: pointer;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   width: 100%;
 }
 
-prfly-checkbox.correction-type-option::part(control) {
-  margin-top: 0.35rem;
+prfly-checkbox.option-card:hover::part(container),
+prfly-checkbox.option-card[data-focused]::part(container),
+prfly-checkbox.option-card[data-checked]::part(container) {
+  border-color: var(--option-color-button-border);
+  box-shadow: 0 0 0 3px var(--option-color-card-ring);
 }
 
-prfly-checkbox.correction-type-option:hover::part(container),
-prfly-checkbox.correction-type-option[data-focused]::part(container),
-prfly-checkbox.correction-type-option[data-checked]::part(container) {
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-}
-
-prfly-checkbox.correction-type-option--single::part(container) {
+prfly-checkbox.option-card--single::part(container) {
   align-items: center;
 }
 
-prfly-checkbox.correction-type-option--single::part(control) {
+prfly-checkbox.option-card--single::part(control) {
   margin-top: 0;
+}
+
+.option-card--shortcut {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 0.2rem;
+  padding: 0.75rem;
+  border: 1px solid var(--option-color-card-border);
+  border-radius: 0.5rem;
+  background: var(--option-color-card-bg);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.option-card--shortcut:hover,
+.option-card--shortcut:focus-within {
+  border-color: var(--option-color-button-border);
+  box-shadow: 0 0 0 3px var(--option-color-card-ring);
+}
+
+.option-card--shortcut .shortcut-control {
+  width: 20px;
+  height: 20px;
+  border-radius: 0.375rem;
+  border: 1.5px solid var(--option-color-reset-border);
+  background: var(--option-color-neutral-bg);
+  flex-shrink: 0;
+}
+
+.option-card--shortcut .setting-option-content {
+  grid-column: 2;
+}
+
+.shortcut-actions {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.shortcut-button {
+  height: 2rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--option-color-button-border);
+  background: var(--option-color-button-bg);
+  color: var(--option-color-button-text);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: max-content;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.shortcut-button:hover,
+.shortcut-button:focus-visible {
+  background: var(--option-color-button-hover-bg);
+  border-color: var(--option-color-button-hover-border);
+  outline: none;
+}
+
+.shortcut-button[data-capturing] {
+  background: var(--option-color-warning-bg);
+  border-color: var(--option-color-warning-border);
+  color: var(--option-color-button-text);
+}
+
+.shortcut-reset {
+  white-space: nowrap;
+}
+
+.setting-option-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: var(--option-color-text-secondary);
 }
 
 .setting-option-content {
@@ -224,26 +326,27 @@ prfly-checkbox.correction-type-option--single::part(control) {
 
 .setting-option-title {
   font-weight: 600;
-  color: #111827;
+  color: var(--option-color-text-primary);
   font-size: 0.95rem;
 }
 
 .setting-option-description {
   font-size: 0.825rem;
-  color: #6b7280;
+  color: var(--option-color-text-secondary);
 }
 
 .correction-type-content {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.5rem;
+  height: 100%;
 }
 
 .correction-type-chip {
   display: inline-flex;
   align-items: center;
   padding: 0.25rem 0.5rem;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 600;
   border: 1px solid transparent;
@@ -251,21 +354,21 @@ prfly-checkbox.correction-type-option--single::part(control) {
 
 .correction-type-description {
   font-size: 0.8125rem;
-  color: #374151;
+  color: var(--option-color-text-muted);
 }
 
 .correction-type-example {
   display: block;
   margin-top: 0.125rem;
   font-size: 0.75rem;
-  color: #6b7280;
+  color: var(--option-color-text-secondary);
 }
 
 .correction-type-colors {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin-top: 0.5rem;
+  margin-top: auto;
 }
 
 .correction-type-colors label {
@@ -273,33 +376,33 @@ prfly-checkbox.correction-type-option--single::part(control) {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.75rem;
-  color: #4b5563;
+  color: var(--option-color-text-tertiary);
   cursor: pointer;
 }
 
 .correction-type-colors input[type="color"] {
-  width: 2.25rem;
-  height: 2.25rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
+  width: 2.4rem;
+  height: 2.4rem;
+  border: none;
   padding: 0;
   background: transparent;
   cursor: pointer;
 }
 
-.correction-color-reset {
+.reset-button {
   padding: 0.35rem 0.75rem;
-  border: 1px solid #d1d5db;
+  height: 2rem;
+  border: 1px solid var(--option-color-reset-border);
   border-radius: 0.375rem;
-  background: #f9fafb;
+  background: var(--option-color-surface-muted);
   font-size: 0.75rem;
-  color: #4b5563;
+  color: var(--option-color-text-tertiary);
   cursor: pointer;
   transition: background 0.2s;
 }
 
-.correction-color-reset:hover {
-  background: #f3f4f6;
+.reset-button:hover {
+  background: var(--option-color-neutral-bg);
 }
 
 .underline-style-options {
@@ -313,26 +416,27 @@ prfly-checkbox.correction-type-option--single::part(control) {
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--option-color-card-border);
   border-radius: 0.5rem;
-  background: #ffffff;
+  background: var(--option-color-card-bg);
   cursor: pointer;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .underline-style-option input[type="radio"] {
   margin: 0;
+  accent-color: var(--option-color-button-bg);
 }
 
 .underline-style-option:focus-within,
 .underline-style-option:hover,
 .underline-style-option:has(input[type="radio"]:checked) {
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  border-color: var(--option-color-button-border);
+  box-shadow: 0 0 0 3px var(--option-color-card-ring);
 }
 
 .underline-style-option input[type="radio"]:checked + .underline-style-visual .underline-style-label {
-  color: #4f46e5;
+  color: var(--option-color-button-border);
 }
 
 .underline-style-visual {
@@ -381,6 +485,8 @@ prfly-checkbox.correction-type-option--single::part(control) {
 
 .live-test-editor {
   min-height: 80px;
+  max-height: 200px;
+  overflow-y: auto;
   padding: 12px;
   border: 1px solid #d1d5db;
   border-radius: 6px;

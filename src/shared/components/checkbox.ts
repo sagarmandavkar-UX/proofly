@@ -184,6 +184,7 @@ export class ProoflyCheckbox extends HTMLElement {
         position: relative;
         display: inline-flex;
         width: 100%;
+        height: 100%;
       }
 
       .checkbox-input {
@@ -261,6 +262,7 @@ export class ProoflyCheckbox extends HTMLElement {
         flex-direction: column;
         gap: 0.5rem;
         flex: 1 1 auto;
+        height: 100%;
       }
     `;
 

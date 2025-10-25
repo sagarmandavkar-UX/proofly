@@ -17,7 +17,7 @@ import './components/correction-popover.ts';
 import type { CorrectionPopover } from './components/correction-popover.ts';
 import { logger } from '../services/logger.ts';
 import { getStorageValues, onStorageChange } from '../shared/utils/storage.ts';
-import { STORAGE_KEYS } from '../shared/constants.ts';
+import { STORAGE_KEYS, STORAGE_DEFAULTS } from '../shared/constants.ts';
 import {
   buildCorrectionColorThemes,
   getActiveCorrectionColors,
@@ -54,12 +54,19 @@ export class ProofreadingManager {
   private correctionTypeCleanup: (() => void) | null = null;
   private correctionColors: CorrectionColorThemeMap = getActiveCorrectionColors();
   private correctionColorsCleanup: (() => void) | null = null;
+  private autoCorrectEnabled: boolean = STORAGE_DEFAULTS[STORAGE_KEYS.AUTO_CORRECT] as boolean;
+  private proofreadShortcut: string = STORAGE_DEFAULTS[STORAGE_KEYS.PROOFREAD_SHORTCUT] as string;
+  private autoCorrectCleanup: (() => void) | null = null;
+  private shortcutStorageCleanup: (() => void) | null = null;
+  private shortcutKeydownHandler: ((event: KeyboardEvent) => void) | null = null;
+  private readonly isMacPlatform = /mac/i.test(navigator.platform);
 
   async initialize(): Promise<void> {
     await this.initializeLanguageDetection();
     this.createSidebar();
     this.createPopover();
     await this.initializeCorrectionPreferences();
+    await this.initializeProofreadPreferences();
     this.observeEditableElements();
     logger.info('Proofreading manager ready');
   }
@@ -125,7 +132,9 @@ export class ProofreadingManager {
         return;
       }
       this.registerElement(target);
-      this.controller.scheduleProofread(target);
+      if (this.shouldAutoProofread()) {
+        this.controller.scheduleProofread(target);
+      }
     };
 
     const handleFocus = (event: Event) => {
@@ -135,7 +144,9 @@ export class ProofreadingManager {
       }
       this.activeElement = target;
       this.registerElement(target);
-      void this.controller.proofread(target);
+      if (this.shouldAutoProofread()) {
+        void this.controller.proofread(target);
+      }
     };
 
     const handleBlur = (event: Event) => {
@@ -158,7 +169,9 @@ export class ProofreadingManager {
           const element = node as HTMLElement;
           if (this.isEditableElement(element)) {
             this.registerElement(element);
-            void this.controller.proofread(element);
+            if (this.shouldAutoProofread()) {
+              void this.controller.proofread(element);
+            }
           }
         });
       }
@@ -378,6 +391,39 @@ export class ProofreadingManager {
     );
   }
 
+  private async initializeProofreadPreferences(): Promise<void> {
+    const { autoCorrect, proofreadShortcut } = await getStorageValues([
+      STORAGE_KEYS.AUTO_CORRECT,
+      STORAGE_KEYS.PROOFREAD_SHORTCUT,
+    ]);
+
+    this.autoCorrectEnabled = autoCorrect;
+    this.proofreadShortcut = proofreadShortcut;
+    this.setupShortcutListener();
+
+    this.cleanupHandler(this.autoCorrectCleanup);
+    this.autoCorrectCleanup = onStorageChange(
+      STORAGE_KEYS.AUTO_CORRECT,
+      (newValue) => {
+        this.autoCorrectEnabled = newValue;
+        if (!newValue) {
+          this.controller.cancelPendingProofreads();
+        }
+        if (newValue && this.activeElement) {
+          void this.controller.proofread(this.activeElement, { force: true });
+        }
+      }
+    );
+
+    this.cleanupHandler(this.shortcutStorageCleanup);
+    this.shortcutStorageCleanup = onStorageChange(
+      STORAGE_KEYS.PROOFREAD_SHORTCUT,
+      (newValue) => {
+        this.proofreadShortcut = newValue;
+      }
+    );
+  }
+
   private updateCorrectionColors(colorConfig: CorrectionColorConfig): void {
     this.correctionColors = buildCorrectionColorThemes(colorConfig);
     setActiveCorrectionColors(colorConfig);
@@ -391,6 +437,76 @@ export class ProofreadingManager {
         void this.controller.proofread(element);
       }
     }
+  }
+
+  private shouldAutoProofread(): boolean {
+    return this.autoCorrectEnabled;
+  }
+
+  private setupShortcutListener(): void {
+    if (this.shortcutKeydownHandler) {
+      return;
+    }
+
+    this.shortcutKeydownHandler = (event: KeyboardEvent) => {
+      if (!this.autoCorrectEnabled && this.matchesShortcut(event)) {
+        event.preventDefault();
+        event.stopPropagation();
+        void this.proofreadActiveElement();
+      }
+    };
+
+    document.addEventListener('keydown', this.shortcutKeydownHandler, true);
+  }
+
+  private matchesShortcut(event: KeyboardEvent): boolean {
+    if (!this.proofreadShortcut) {
+      return false;
+    }
+
+    const combo = this.buildShortcutFromEvent(event);
+    return combo !== null && combo === this.proofreadShortcut;
+  }
+
+  private buildShortcutFromEvent(event: KeyboardEvent): string | null {
+    const key = event.key;
+
+    const modifiers: string[] = [];
+    const modPressed = this.isMacPlatform ? event.metaKey : event.ctrlKey;
+    if (modPressed) {
+      modifiers.push('Mod');
+    }
+
+    if (event.altKey) {
+      modifiers.push('Alt');
+    }
+
+    if (event.shiftKey) {
+      modifiers.push('Shift');
+    }
+
+    if (key === 'Escape') {
+      return null;
+    }
+
+    if (key === 'Shift' || key === 'Control' || key === 'Alt' || key === 'Meta') {
+      return null;
+    }
+
+    if (modifiers.length === 0) {
+      return null;
+    }
+
+    let normalizedKey: string;
+    if (key === ' ') {
+      normalizedKey = 'Space';
+    } else if (key.length === 1) {
+      normalizedKey = key.toUpperCase();
+    } else {
+      normalizedKey = key.charAt(0).toUpperCase() + key.slice(1);
+    }
+
+    return [...modifiers, normalizedKey].join('+');
   }
 
   private async getOrCreateProofreaderService(language: string): Promise<ReturnType<typeof createProofreadingService>> {
@@ -474,5 +590,16 @@ export class ProofreadingManager {
 
     this.cleanupHandler(this.correctionColorsCleanup);
     this.correctionColorsCleanup = null;
+
+    this.cleanupHandler(this.autoCorrectCleanup);
+    this.autoCorrectCleanup = null;
+
+    this.cleanupHandler(this.shortcutStorageCleanup);
+    this.shortcutStorageCleanup = null;
+
+    if (this.shortcutKeydownHandler) {
+      document.removeEventListener('keydown', this.shortcutKeydownHandler, true);
+      this.shortcutKeydownHandler = null;
+    }
   }
 }

@@ -3,7 +3,7 @@ import '../shared/components/checkbox.ts';
 import type { ProoflyCheckbox } from '../shared/components/checkbox.ts';
 import { debounce } from '../shared/utils/debounce.ts';
 import { isModelReady, getStorageValues, onStorageChange, setStorageValue } from '../shared/utils/storage.ts';
-import { STORAGE_KEYS } from '../shared/constants.ts';
+import { STORAGE_KEYS, STORAGE_DEFAULTS } from '../shared/constants.ts';
 import { ContentHighlighter } from '../content/components/content-highlighter.ts';
 import {
   createProofreader,
@@ -33,6 +33,10 @@ interface LiveTestControls {
   proofread(): Promise<void>;
 }
 
+interface LiveTestAreaOptions {
+  isAutoCorrectEnabled: () => boolean;
+}
+
 async function initOptions() {
   const app = document.querySelector<HTMLDivElement>('#app')!;
 
@@ -55,11 +59,12 @@ async function initOptions() {
       location.reload();
     });
   } else {
-    const { autoCorrect, underlineStyle, enabledCorrectionTypes, correctionColors } = await getStorageValues([
+    const { autoCorrect, underlineStyle, enabledCorrectionTypes, correctionColors, proofreadShortcut } = await getStorageValues([
       STORAGE_KEYS.AUTO_CORRECT,
       STORAGE_KEYS.UNDERLINE_STYLE,
       STORAGE_KEYS.ENABLED_CORRECTION_TYPES,
       STORAGE_KEYS.CORRECTION_COLORS,
+      STORAGE_KEYS.PROOFREAD_SHORTCUT,
     ]);
 
     let correctionColorConfig: CorrectionColorConfig = structuredClone(correctionColors);
@@ -67,12 +72,79 @@ async function initOptions() {
     let currentCorrectionThemes = buildCorrectionColorThemes(correctionColorConfig);
     let liveTestControls: LiveTestControls | null = null;
     let currentEnabledCorrectionTypes = [...enabledCorrectionTypes];
+    let currentProofreadShortcut = proofreadShortcut;
+    let autoCorrectEnabled = autoCorrect;
 
+    const DEFAULT_PROOFREAD_SHORTCUT = STORAGE_DEFAULTS[STORAGE_KEYS.PROOFREAD_SHORTCUT];
     const persistCorrectionColors = debounce((config: CorrectionColorConfig) => {
       void setStorageValue(STORAGE_KEYS.CORRECTION_COLORS, structuredClone(config)).catch((error) => {
         console.error('Failed to persist correction colors', error);
       });
     }, 500);
+
+    const isMac = /mac/i.test(navigator.platform);
+    const displayMap: Record<string, string> = isMac
+      ? { Mod: '⌘', Shift: '⇧', Alt: '⌥' }
+      : { Mod: 'Ctrl', Shift: 'Shift', Alt: 'Alt' };
+
+    const specialKeys: Record<string, string> = {
+      ArrowUp: '↑',
+      ArrowDown: '↓',
+      ArrowLeft: '←',
+      ArrowRight: '→',
+      Space: 'Space',
+      Enter: 'Enter',
+      Backspace: 'Backspace',
+      Delete: 'Delete',
+      Tab: 'Tab',
+      Home: 'Home',
+      End: 'End',
+      PageUp: 'PageUp',
+      PageDown: 'PageDown',
+    };
+
+    const formatShortcut = (value: string): string => {
+      if (!value) return 'Not set';
+      return value.split('+').map((part) => {
+        if (displayMap[part]) return displayMap[part];
+        const special = specialKeys[part];
+        if (special) return special;
+        if (part.length === 1) return part.toUpperCase();
+        return part.charAt(0).toUpperCase() + part.slice(1);
+      }).join(' + ');
+    };
+
+    const buildShortcutFromEvent = (event: KeyboardEvent): string | null => {
+      const key = event.key;
+
+      if (key === 'Escape') {
+        return 'ESC_CANCEL';
+      }
+
+      const modifiers: string[] = [];
+      if (event.metaKey || event.ctrlKey) modifiers.push('Mod');
+      if (event.altKey) modifiers.push('Alt');
+      if (event.shiftKey) modifiers.push('Shift');
+
+      if (key === 'Shift' || key === 'Control' || key === 'Alt' || key === 'Meta') {
+        return null;
+      }
+
+      if (modifiers.length === 0) {
+        return null;
+      }
+
+      let normalizedKey: string;
+      if (key === ' ') {
+        normalizedKey = 'Space';
+      } else if (key.length === 1) {
+        normalizedKey = key.toUpperCase();
+      } else {
+        normalizedKey = key.charAt(0).toUpperCase() + key.slice(1);
+      }
+
+      return [...modifiers, normalizedKey].join('+');
+    };
 
     const UNDERLINE_STYLE_TYPE: Record<UnderlineStyle, CorrectionTypeKey> = {
       solid: 'spelling',
@@ -92,7 +164,7 @@ async function initOptions() {
             <label class="underline-style-option" data-style="${value}">
               <input type="radio" name="underlineStyle" value="${value}" ${checked} />
               <div class="underline-style-visual">
-                <span class="underline-style-label">${label}</span>
+                <span class="setting-option-title">${label}</span>
                 <span class="underline-style-sample underline-style-sample--${value}" data-style-preview="${value}">${sample}</span>
               </div>
             </label>
@@ -103,7 +175,7 @@ async function initOptions() {
       const info = currentCorrectionThemes[type];
       const checked = currentEnabledCorrectionTypes.includes(type) ? 'checked' : '';
       return `
-            <prfly-checkbox class="correction-type-option" data-type="${type}" name="correctionType" value="${type}" ${checked}>
+            <prfly-checkbox class="option-card" data-type="${type}" name="correctionType" value="${type}" ${checked}>
               <div class="correction-type-content">
                 <span class="correction-type-chip" style="border-color: ${info.border}; background: ${info.background}; color: ${info.color};">${info.label}</span>
                 <span class="correction-type-description">
@@ -115,7 +187,7 @@ async function initOptions() {
                     <span>Accent</span>
                     <input type="color" value="${correctionColorConfig[type].color}" data-type="${type}" data-checkbox-interactive />
                   </label>
-                  <button type="button" class="correction-color-reset" data-type="${type}" data-checkbox-interactive>Reset</button>
+                  <button type="button" class="reset-button" data-type="${type}" data-checkbox-interactive>Reset</button>
                 </div>
               </div>
             </prfly-checkbox>
@@ -129,56 +201,72 @@ async function initOptions() {
           <p>Configure your AI proofreading preferences</p>
         </header>
         <main>
-          <section class="settings-section">
+          <section class="settings-section full-width">
             <h2>Model Status</h2>
-            <div class="status-card">
-              <div class="status-indicator ready"></div>
-              <div>
-                <strong>AI Model Ready</strong>
-                <p>The proofreader model is downloaded and ready to use.</p>
+            <p class="section-description">Review the status of AI models.</p>
+            <div class="section-items">
+              <div class="status-card">
+                <div class="status-indicator ready"></div>
+                <div>
+                  <strong>AI Model Ready</strong>
+                  <p>The proofreader model is downloaded and ready to use.</p>
+                </div>
               </div>
             </div>
           </section>
 
           <section class="settings-section">
             <h2>Proofreading</h2>
-            <prfly-checkbox
-              id="autoCorrect"
-              class="correction-type-option correction-type-option--single"
-              aria-labelledby="autoCorrectTitle"
-              ${autoCorrect ? 'checked' : ''}
-            >
-              <div class="setting-option-content">
-                <span id="autoCorrectTitle" class="setting-option-title">Auto-correct</span>
-                <span class="setting-option-description">Automatically check text as you type</span>
+            <p class="section-description">Select how Proofly should trigger proofreading.</p>
+            <div class="section-items">
+              <div class="option-card">
+                <prfly-checkbox
+                  id="autoCorrect"
+                  class="option-card option-card--single"
+                  aria-labelledby="autoCorrectTitle"
+                  ${autoCorrect ? 'checked' : ''}
+                >
+                  <div class="setting-option-content">
+                    <span id="autoCorrectTitle" class="setting-option-title">Auto-correct</span>
+                    <span class="setting-option-description">Automatically check text as you type.</span>
+                  </div>
+                </prfly-checkbox>
               </div>
-            </prfly-checkbox>
+              
+              <div class="option-card option-card--shortcut">
+                <div class="setting-option-content">
+                  <span id="manualTriggerTitle" class="setting-option-title">Manual trigger</span>
+                  <span class="setting-option-description">Trigger proofreading on the active element when auto-correct is turned off.</span>
+                  <p class="setting-option-hint" id="proofreadShortcutHint">Click the shortcut below to record a new key combination. Press <strong>esc</strong> to cancel.</p>
+                </div>
+                <div class="shortcut-actions">
+                  <button type="button" class="shortcut-button" id="proofreadShortcutButton" data-checkbox-interactive></button>
+                  <button type="button" class="reset-button shortcut-reset" id="proofreadShortcutReset" data-checkbox-interactive>Reset</button>
+                </div>
+              </div>
+            </div>
+            
           </section>
 
           <section class="settings-section">
-            <h2>Appearance</h2>
-            <div class="setting-item">
-              <div class="setting-info">
-                <label for="underlineStyle">Underline Style</label>
-                <p>Choose how errors are underlined</p>
-              </div>
-              <div class="underline-style-options">
+            <h2>Highlight Style</h2>
+            <p class="section-description">Select how Proofly should highlight issues.</p>
+            <div class="section-items">
                 ${underlineStyleOptions}
-              </div>
             </div>
           </section>
 
-          <section class="settings-section">
+          <section class="settings-section full-width">
             <h2>Issue Types</h2>
             <p class="section-description">Select which issues Proofly should flag while proofreading.</p>
-            <div class="correction-type-grid">
+            <div class="section-items correction-type-grid">
               ${correctionTypeOptions}
             </div>
           </section>
 
           <section class="settings-section full-width live-test-area">
             <h2>Live Test Area</h2>
-            <p class="section-description">Try out the proofreading functionality below. Type or paste text with errors to see real-time corrections.</p>
+            <p class="section-description">Try out the proofreading functionality below. Type or paste text with errors to see real-time corrections. <br>Update your preferences and test them live.</p>
             <div
               id="liveTestEditor"
               class="live-test-editor"
@@ -186,14 +274,6 @@ async function initOptions() {
               spellcheck="false"
               data-placeholder="Start typing to check for errors..."
             ></div>
-          </section>
-
-          <section class="settings-section">
-            <h2>About</h2>
-            <div class="about-card">
-              <p><strong>Proofly</strong> - Privacy-first AI proofreading</p>
-              <p>All processing happens on your device. Zero data leaves your computer.</p>
-            </div>
           </section>
         </main>
       </div>
@@ -206,10 +286,131 @@ async function initOptions() {
 
     const autoCorrectCheckbox = document.querySelector<ProoflyCheckbox>('prfly-checkbox#autoCorrect');
     if (autoCorrectCheckbox) {
+      autoCorrectCheckbox.checked = autoCorrectEnabled;
       autoCorrectCheckbox.addEventListener('change', async () => {
-        await setStorageValue(STORAGE_KEYS.AUTO_CORRECT, autoCorrectCheckbox.checked);
+        autoCorrectEnabled = autoCorrectCheckbox.checked;
+        await setStorageValue(STORAGE_KEYS.AUTO_CORRECT, autoCorrectEnabled);
+        if (autoCorrectEnabled) {
+          void liveTestControls?.proofread();
+        }
       });
     }
+
+    const shortcutButton = document.querySelector<HTMLButtonElement>('#proofreadShortcutButton');
+    const shortcutResetButton = document.querySelector<HTMLButtonElement>('#proofreadShortcutReset');
+    const shortcutHint = document.querySelector<HTMLParagraphElement>('#proofreadShortcutHint');
+
+    const updateShortcutDisplay = () => {
+      if (shortcutButton) {
+        shortcutButton.textContent = formatShortcut(currentProofreadShortcut);
+      }
+    };
+
+    updateShortcutDisplay();
+
+    let captureCleanup: (() => void) | null = null;
+    let isRecordingShortcut = false;
+
+    const finishShortcutCapture = (apply: boolean, value?: string) => {
+      if (captureCleanup) {
+        captureCleanup();
+        captureCleanup = null;
+      }
+
+      isRecordingShortcut = false;
+      shortcutButton?.removeAttribute('data-capturing');
+
+      if (apply && value) {
+        currentProofreadShortcut = value;
+        updateShortcutDisplay();
+        void setStorageValue(STORAGE_KEYS.PROOFREAD_SHORTCUT, value).catch((error) => {
+          console.error('Failed to persist proofread shortcut', error);
+        });
+      } else {
+        updateShortcutDisplay();
+      }
+
+      if (shortcutHint) {
+        shortcutHint.textContent = 'Click the shortcut to record a new key combination. Press Esc to cancel.';
+      }
+    };
+
+    const startShortcutCapture = () => {
+      if (!shortcutButton || captureCleanup) {
+        return;
+      }
+
+      isRecordingShortcut = true;
+      shortcutButton.dataset.capturing = 'true';
+      shortcutButton.textContent = 'Press shortcut…';
+      if (shortcutHint) {
+        shortcutHint.textContent = 'Press the new shortcut now. Esc cancels.';
+      }
+
+      const handleKeyDown = (event: KeyboardEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const combo = buildShortcutFromEvent(event);
+        if (combo === 'ESC_CANCEL') {
+          finishShortcutCapture(false);
+          return;
+        }
+
+        if (!combo) {
+          return;
+        }
+
+        finishShortcutCapture(true, combo);
+      };
+
+      const handleBlur = () => {
+        finishShortcutCapture(false);
+      };
+
+      document.addEventListener('keydown', handleKeyDown, true);
+      window.addEventListener('blur', handleBlur, true);
+
+      captureCleanup = () => {
+        document.removeEventListener('keydown', handleKeyDown, true);
+        window.removeEventListener('blur', handleBlur, true);
+        shortcutButton.removeAttribute('data-capturing');
+      };
+
+      shortcutButton.focus();
+    };
+
+    shortcutButton?.addEventListener('click', (event) => {
+      event.preventDefault();
+      startShortcutCapture();
+    });
+
+    shortcutResetButton?.addEventListener('click', () => {
+      finishShortcutCapture(false);
+      currentProofreadShortcut = DEFAULT_PROOFREAD_SHORTCUT;
+      updateShortcutDisplay();
+      void setStorageValue(STORAGE_KEYS.PROOFREAD_SHORTCUT, DEFAULT_PROOFREAD_SHORTCUT).catch((error) => {
+        console.error('Failed to reset proofread shortcut', error);
+      });
+    });
+
+    const handlePageShortcut = (event: KeyboardEvent) => {
+      if (isRecordingShortcut || autoCorrectEnabled) {
+        return;
+      }
+
+      const combo = buildShortcutFromEvent(event);
+      if (combo === 'ESC_CANCEL') {
+        return;
+      }
+      if (combo && combo === currentProofreadShortcut) {
+        event.preventDefault();
+        event.stopPropagation();
+        void liveTestControls?.proofread();
+      }
+    };
+
+    document.addEventListener('keydown', handlePageShortcut, true);
 
     const updateUnderlinePreviewStyles = () => {
       (['solid', 'wavy', 'dotted'] as UnderlineStyle[]).forEach((style) => {
@@ -263,9 +464,19 @@ async function initOptions() {
       }
     );
 
+    onStorageChange(STORAGE_KEYS.AUTO_CORRECT, (newValue) => {
+      autoCorrectEnabled = newValue;
+      if (autoCorrectCheckbox) {
+        autoCorrectCheckbox.checked = newValue;
+      }
+      if (newValue) {
+        void liveTestControls?.proofread();
+      }
+    });
+
     const updateOptionStyles = (type: CorrectionTypeKey) => {
       const theme = currentCorrectionThemes[type];
-      const option = document.querySelector<ProoflyCheckbox>(`prfly-checkbox.correction-type-option[data-type="${type}"]`);
+      const option = document.querySelector<ProoflyCheckbox>(`prfly-checkbox.option-card[data-type="${type}"]`);
       if (!option) return;
       const chip = option.querySelector<HTMLElement>('.correction-type-chip');
       if (chip) {
@@ -303,7 +514,7 @@ async function initOptions() {
       });
     });
 
-    const resetButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('button.correction-color-reset[data-type]'));
+    const resetButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('button.reset-button[data-type]'));
     resetButtons.forEach((button) => {
       button.addEventListener('click', async () => {
         const type = button.dataset.type as CorrectionTypeKey | undefined;
@@ -330,34 +541,44 @@ async function initOptions() {
       });
     });
 
-    onStorageChange(
-      STORAGE_KEYS.CORRECTION_COLORS,
-      (newValue) => {
-        persistCorrectionColors.cancel();
-        correctionColorConfig = structuredClone(newValue);
-        currentCorrectionThemes = buildCorrectionColorThemes(correctionColorConfig);
-        setActiveCorrectionColors(correctionColorConfig);
+    onStorageChange(STORAGE_KEYS.CORRECTION_COLORS, (newValue) => {
+      persistCorrectionColors.cancel();
+      correctionColorConfig = structuredClone(newValue);
+      currentCorrectionThemes = buildCorrectionColorThemes(correctionColorConfig);
+      setActiveCorrectionColors(correctionColorConfig);
 
-        for (const type of ALL_CORRECTION_TYPES) {
-          updateOptionStyles(type);
-          const inputEl = document.querySelector<HTMLInputElement>(`input[type="color"][data-type="${type}"]`);
-          if (inputEl) {
-            inputEl.value = correctionColorConfig[type].color;
-          }
+      for (const type of ALL_CORRECTION_TYPES) {
+        updateOptionStyles(type);
+        const inputEl = document.querySelector<HTMLInputElement>(`input[type="color"][data-type="${type}"]`);
+        if (inputEl) {
+          inputEl.value = correctionColorConfig[type].color;
         }
-        updateUnderlinePreviewStyles();
-        liveTestControls?.updateColors(correctionColorConfig);
       }
-    );
+      updateUnderlinePreviewStyles();
+      liveTestControls?.updateColors(correctionColorConfig);
+    });
+
+    onStorageChange(STORAGE_KEYS.PROOFREAD_SHORTCUT, (newValue) => {
+      finishShortcutCapture(false);
+      currentProofreadShortcut = newValue;
+      updateShortcutDisplay();
+    });
 
     // Setup live test area proofreading
-    liveTestControls = await setupLiveTestArea(currentEnabledCorrectionTypes, correctionColorConfig);
+    liveTestControls = await setupLiveTestArea(
+      currentEnabledCorrectionTypes,
+      correctionColorConfig,
+      {
+        isAutoCorrectEnabled: () => autoCorrectEnabled,
+      }
+    );
   }
 }
 
 async function setupLiveTestArea(
   initialEnabledTypes: CorrectionTypeKey[],
-  initialColorConfig: CorrectionColorConfig
+  initialColorConfig: CorrectionColorConfig,
+  options: LiveTestAreaOptions
 ): Promise<LiveTestControls | null> {
   const editor = document.getElementById('liveTestEditor');
   if (!editor) return null;
@@ -422,10 +643,22 @@ async function setupLiveTestArea(
   });
 
   editor.addEventListener('input', () => {
-    controller.scheduleProofread(editor);
+    if (options.isAutoCorrectEnabled()) {
+      controller.scheduleProofread(editor);
+    }
   });
 
-  const refreshProofreading = async () => {
+  editor.addEventListener('focus', () => {
+    if (options.isAutoCorrectEnabled()) {
+      void controller.proofread(editor, { force: true });
+    }
+  });
+
+  const refreshProofreading = async (force = false) => {
+    if (!force && !options.isAutoCorrectEnabled()) {
+      return;
+    }
+
     controller.resetElement(editor);
     await controller.proofread(editor, { force: true });
   };
@@ -472,7 +705,7 @@ async function setupLiveTestArea(
   return {
     updateEnabledTypes,
     updateColors,
-    proofread: () => refreshProofreading(),
+    proofread: () => refreshProofreading(true),
   };
 }
 

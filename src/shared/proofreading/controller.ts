@@ -95,6 +95,12 @@ export class ProofreadingController {
     undoManager.disposeElement(element);
   }
 
+  cancelPendingProofreads(): void {
+    for (const state of this.states.values()) {
+      state.debouncedProofread.cancel();
+    }
+  }
+
   scheduleProofread(element: HTMLElement): void {
     const state = this.states.get(element);
     if (!state || state.isApplyingCorrection || state.isRestoringFromHistory) {
