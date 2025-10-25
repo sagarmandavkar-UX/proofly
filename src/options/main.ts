@@ -1,4 +1,7 @@
 import '../shared/components/model-downloader.ts';
+import '../shared/components/checkbox.ts';
+import type { ProoflyCheckbox } from '../shared/components/checkbox.ts';
+import { debounce } from '../shared/utils/debounce.ts';
 import { isModelReady, getStorageValues, onStorageChange, setStorageValue } from '../shared/utils/storage.ts';
 import { STORAGE_KEYS } from '../shared/constants.ts';
 import { ContentHighlighter } from '../content/components/content-highlighter.ts';
@@ -65,6 +68,12 @@ async function initOptions() {
     let liveTestControls: LiveTestControls | null = null;
     let currentEnabledCorrectionTypes = [...enabledCorrectionTypes];
 
+    const persistCorrectionColors = debounce((config: CorrectionColorConfig) => {
+      void setStorageValue(STORAGE_KEYS.CORRECTION_COLORS, structuredClone(config)).catch((error) => {
+        console.error('Failed to persist correction colors', error);
+      });
+    }, 500);
+
     const UNDERLINE_STYLE_TYPE: Record<UnderlineStyle, CorrectionTypeKey> = {
       solid: 'spelling',
       wavy: 'spelling',
@@ -94,8 +103,7 @@ async function initOptions() {
       const info = currentCorrectionThemes[type];
       const checked = currentEnabledCorrectionTypes.includes(type) ? 'checked' : '';
       return `
-            <label class="correction-type-option" data-type="${type}">
-              <input type="checkbox" name="correctionType" value="${type}" ${checked} />
+            <prfly-checkbox class="correction-type-option" data-type="${type}" name="correctionType" value="${type}" ${checked}>
               <div class="correction-type-content">
                 <span class="correction-type-chip" style="border-color: ${info.border}; background: ${info.background}; color: ${info.color};">${info.label}</span>
                 <span class="correction-type-description">
@@ -105,12 +113,12 @@ async function initOptions() {
                 <div class="correction-type-colors">
                   <label>
                     <span>Accent</span>
-                    <input type="color" value="${correctionColorConfig[type].color}" data-type="${type}" />
+                    <input type="color" value="${correctionColorConfig[type].color}" data-type="${type}" data-checkbox-interactive />
                   </label>
-                  <button type="button" class="correction-color-reset" data-type="${type}">Reset</button>
+                  <button type="button" class="correction-color-reset" data-type="${type}" data-checkbox-interactive>Reset</button>
                 </div>
               </div>
-            </label>
+            </prfly-checkbox>
           `;
     }).join('');
 
@@ -134,13 +142,17 @@ async function initOptions() {
 
           <section class="settings-section">
             <h2>Proofreading</h2>
-            <div class="setting-item">
-              <div class="setting-info">
-                <label for="autoCorrect">Auto-correct</label>
-                <p>Automatically check text as you type</p>
+            <prfly-checkbox
+              id="autoCorrect"
+              class="correction-type-option correction-type-option--single"
+              aria-labelledby="autoCorrectTitle"
+              ${autoCorrect ? 'checked' : ''}
+            >
+              <div class="setting-option-content">
+                <span id="autoCorrectTitle" class="setting-option-title">Auto-correct</span>
+                <span class="setting-option-description">Automatically check text as you type</span>
               </div>
-              <input type="checkbox" id="autoCorrect" ${autoCorrect ? 'checked' : ''} />
-            </div>
+            </prfly-checkbox>
           </section>
 
           <section class="settings-section">
@@ -192,11 +204,12 @@ async function initOptions() {
       liveTestEditor.textContent = LIVE_TEST_SAMPLE_TEXT;
     }
 
-    const autoCorrectCheckbox = document.querySelector<HTMLInputElement>('#autoCorrect');
-    autoCorrectCheckbox?.addEventListener('change', async (e) => {
-      const checked = (e.target as HTMLInputElement).checked;
-      await setStorageValue(STORAGE_KEYS.AUTO_CORRECT, checked);
-    });
+    const autoCorrectCheckbox = document.querySelector<ProoflyCheckbox>('prfly-checkbox#autoCorrect');
+    if (autoCorrectCheckbox) {
+      autoCorrectCheckbox.addEventListener('change', async () => {
+        await setStorageValue(STORAGE_KEYS.AUTO_CORRECT, autoCorrectCheckbox.checked);
+      });
+    }
 
     const updateUnderlinePreviewStyles = () => {
       (['solid', 'wavy', 'dotted'] as UnderlineStyle[]).forEach((style) => {
@@ -218,16 +231,17 @@ async function initOptions() {
       });
     });
 
-    const correctionTypeInputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="correctionType"]'));
-    correctionTypeInputs.forEach((input) => {
-      input.addEventListener('change', async (event) => {
-        const target = event.target as HTMLInputElement;
-        const selectedValues = correctionTypeInputs
-          .filter((checkbox) => checkbox.checked)
-          .map((checkbox) => checkbox.value as CorrectionTypeKey);
+    const correctionTypeCheckboxes = Array.from(
+      document.querySelectorAll<ProoflyCheckbox>('prfly-checkbox[name="correctionType"]')
+    );
+    correctionTypeCheckboxes.forEach((checkbox) => {
+      checkbox.addEventListener('change', async () => {
+        const selectedValues = correctionTypeCheckboxes
+          .filter((item) => item.checked)
+          .map((item) => item.value as CorrectionTypeKey);
 
         if (selectedValues.length === 0) {
-          target.checked = true;
+          checkbox.checked = true;
           return;
         }
 
@@ -242,7 +256,7 @@ async function initOptions() {
       STORAGE_KEYS.ENABLED_CORRECTION_TYPES,
       (newValue) => {
         currentEnabledCorrectionTypes = [...newValue];
-        correctionTypeInputs.forEach((checkbox) => {
+        correctionTypeCheckboxes.forEach((checkbox) => {
           checkbox.checked = currentEnabledCorrectionTypes.includes(checkbox.value as CorrectionTypeKey);
         });
         liveTestControls?.updateEnabledTypes(currentEnabledCorrectionTypes);
@@ -251,7 +265,7 @@ async function initOptions() {
 
     const updateOptionStyles = (type: CorrectionTypeKey) => {
       const theme = currentCorrectionThemes[type];
-      const option = document.querySelector<HTMLLabelElement>(`.correction-type-option[data-type="${type}"]`);
+      const option = document.querySelector<ProoflyCheckbox>(`prfly-checkbox.correction-type-option[data-type="${type}"]`);
       if (!option) return;
       const chip = option.querySelector<HTMLElement>('.correction-type-chip');
       if (chip) {
@@ -284,7 +298,7 @@ async function initOptions() {
         updateOptionStyles(type);
         updateUnderlinePreviewStyles();
 
-        await setStorageValue(STORAGE_KEYS.CORRECTION_COLORS, correctionColorConfig);
+        persistCorrectionColors(correctionColorConfig);
         liveTestControls?.updateColors(correctionColorConfig);
       });
     });
@@ -311,7 +325,7 @@ async function initOptions() {
         updateOptionStyles(type);
         updateUnderlinePreviewStyles();
 
-        await setStorageValue(STORAGE_KEYS.CORRECTION_COLORS, correctionColorConfig);
+        persistCorrectionColors(correctionColorConfig);
         liveTestControls?.updateColors(correctionColorConfig);
       });
     });
@@ -319,6 +333,7 @@ async function initOptions() {
     onStorageChange(
       STORAGE_KEYS.CORRECTION_COLORS,
       (newValue) => {
+        persistCorrectionColors.cancel();
         correctionColorConfig = structuredClone(newValue);
         currentCorrectionThemes = buildCorrectionColorThemes(correctionColorConfig);
         setActiveCorrectionColors(correctionColorConfig);
