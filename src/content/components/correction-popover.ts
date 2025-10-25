@@ -5,6 +5,7 @@ export class CorrectionPopover extends HTMLElement {
   private currentCorrection: ProofreadCorrection | null = null;
   private onApply: ((correction: ProofreadCorrection) => void) | null = null;
   private clickOutsideHandler: ((e: MouseEvent) => void) | null = null;
+  private keydownHandler: ((e: KeyboardEvent) => void) | null = null;
 
   constructor() {
     super();
@@ -66,6 +67,16 @@ export class CorrectionPopover extends HTMLElement {
       };
       document.addEventListener('click', this.clickOutsideHandler, true);
     }, 100);
+
+    if (this.keydownHandler) {
+      document.removeEventListener('keydown', this.keydownHandler, true);
+    }
+    this.keydownHandler = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        this.hide();
+      }
+    };
+    document.addEventListener('keydown', this.keydownHandler, true);
   }
 
   hide(): void {
@@ -73,6 +84,11 @@ export class CorrectionPopover extends HTMLElement {
     if (this.clickOutsideHandler) {
       document.removeEventListener('click', this.clickOutsideHandler, true);
       this.clickOutsideHandler = null;
+    }
+
+    if (this.keydownHandler) {
+      document.removeEventListener('keydown', this.keydownHandler, true);
+      this.keydownHandler = null;
     }
 
     this.hidePopover();
@@ -92,6 +108,7 @@ export class CorrectionPopover extends HTMLElement {
         <span class="correction-type" style="background: ${colors.background}; color: ${colors.color}; border: 1px solid ${colors.border};">
           ${colors.label}
         </span>
+        <button class="close-button" type="button" aria-label="Close">&times;</button>
       </div>
       <div class="correction-body">
         <div class="correction-suggestion">
@@ -117,6 +134,13 @@ export class CorrectionPopover extends HTMLElement {
         this.hide();
       });
     }
+
+    const closeButton = content.querySelector('.close-button');
+    if (closeButton) {
+      closeButton.addEventListener('click', () => {
+        this.hide();
+      });
+    }
   }
 
   private escapeHtml(text: string): string {
@@ -134,6 +158,7 @@ export class CorrectionPopover extends HTMLElement {
         padding: 0;
         border: none;
         max-width: 320px;
+        min-width: 180px;
         background: transparent;
       }
 
@@ -153,6 +178,10 @@ export class CorrectionPopover extends HTMLElement {
       .correction-header {
         padding: 0.75rem;
         border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
       }
 
       .correction-type {
@@ -161,6 +190,23 @@ export class CorrectionPopover extends HTMLElement {
         font-size: 0.75rem;
         font-weight: 600;
         text-transform: capitalize;
+      }
+
+      .close-button {
+        background: transparent;
+        border: none;
+        color: #6b7280;
+        font-size: 1rem;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0.25rem 0.40rem;
+        border-radius: 6px;
+        transition: background 0.2s, color 0.2s;
+      }
+
+      .close-button:hover {
+        background: #f3f4f6;
+        color: #111827;
       }
 
       .correction-body {
