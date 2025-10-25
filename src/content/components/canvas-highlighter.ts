@@ -309,7 +309,7 @@ export class CanvasHighlighter {
     this.ctx.lineWidth = 2;
     this.ctx.imageSmoothingEnabled = false;
 
-    const baseY = Math.floor(y + height + 1);
+    const baseY = Math.floor(y + height + (this.underlineStyle === 'wavy' ? 1 : 0));
 
     if (this.underlineStyle === 'solid') {
       this.ctx.beginPath();

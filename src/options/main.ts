@@ -67,15 +67,15 @@ async function initOptions() {
 
     const UNDERLINE_STYLE_TYPE: Record<UnderlineStyle, CorrectionTypeKey> = {
       solid: 'spelling',
-      wavy: 'grammar',
-      dotted: 'punctuation',
+      wavy: 'spelling',
+      dotted: 'spelling',
     };
 
     const underlineStyleOptions = (
       [
-        { value: 'solid' as UnderlineStyle, label: 'Solid', sample: 'Correct spelling' },
-        { value: 'wavy' as UnderlineStyle, label: 'Wavy', sample: 'Grammar alert' },
-        { value: 'dotted' as UnderlineStyle, label: 'Dotted', sample: 'Punctuation check' },
+        { value: 'solid' as UnderlineStyle, label: 'Solid', sample: 'speling mystake' },
+        { value: 'wavy' as UnderlineStyle, label: 'Wavy', sample: 'speling mystake' },
+        { value: 'dotted' as UnderlineStyle, label: 'Dotted', sample: 'speling mystake' },
       ]
     ).map(({ value, label, sample }) => {
       const checked = underlineStyle === value ? 'checked' : '';

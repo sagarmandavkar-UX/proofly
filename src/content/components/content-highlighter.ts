@@ -620,15 +620,19 @@ function updateHighlightStyle(style: UnderlineStyle, colors: CorrectionColorThem
       text-decoration: underline;
       text-decoration-color: ${theme.color};
       text-decoration-thickness: 2px;
+      text-decoration-skip-ink: none;
       text-decoration-style: ${style};
+      text-underline-offset: 2px;
     }`;
   }).join('\n').concat(`
   ::highlight(${SELECTED_HIGHLIGHT}) {
     background-color: var(--prfly-selected-highlight-bg, transparent);
     text-decoration: underline;
     text-decoration-color: var(--prfly-selected-highlight-color, currentColor);
-    text-decoration-thickness: 2px;
+    text-decoration-thickness: 2px
+    text-decoration-skip-ink: none;
     text-decoration-style: ${style};
+    text-underline-offset: 2px;
   }
 `);
 }
