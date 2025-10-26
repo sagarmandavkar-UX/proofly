@@ -1,6 +1,5 @@
 import { AsyncQueue } from '../shared/utils/queue.ts';
 import { ContentHighlighter } from './components/content-highlighter.ts';
-import { CanvasHighlighter } from './components/canvas-highlighter.ts';
 import {
   createProofreader,
   createProofreaderAdapter,
@@ -28,11 +27,21 @@ import {
 } from '../shared/utils/correction-types.ts';
 import { createProofreadingController } from '../shared/proofreading/controller.ts';
 import type { ProofreadingTargetHooks } from '../shared/proofreading/types.ts';
-import type { ProofreadCorrection, ProofreadResult } from '../shared/types.ts';
+import type {
+  ProofreadCorrection,
+  ProofreadResult,
+  UnderlineStyle,
+} from '../shared/types.ts';
+import {
+  TargetSession,
+  type Issue as SessionIssue,
+  type IssueColorPalette,
+} from './target-session.ts';
 
 export class ProofreadingManager {
   private readonly highlighter = new ContentHighlighter();
-  private readonly elementCanvasHighlighters = new Map<HTMLElement, CanvasHighlighter>();
+  private readonly elementSessions = new Map<HTMLElement, TargetSession>();
+  private readonly elementIssueLookup = new Map<HTMLElement, Map<string, ProofreadCorrection>>();
   private readonly proofreaderServices = new Map<string, ReturnType<typeof createProofreadingService>>();
   private readonly proofreadQueue = new AsyncQueue();
   private readonly registeredElements = new Set<HTMLElement>();
@@ -42,7 +51,7 @@ export class ProofreadingManager {
   private popoverHideCleanup: (() => void) | null = null;
   private observer: MutationObserver | null = null;
   private activeElement: HTMLElement | null = null;
-  private activeCanvasHighlighter: CanvasHighlighter | null = null;
+  private activeSessionElement: HTMLElement | null = null;
   private controller = createProofreadingController({
     runProofread: (element, text) => this.runProofread(element, text),
     filterCorrections: (_element, corrections, text) => this.filterCorrections(corrections, text),
@@ -54,6 +63,8 @@ export class ProofreadingManager {
   private correctionTypeCleanup: (() => void) | null = null;
   private correctionColors: CorrectionColorThemeMap = getActiveCorrectionColors();
   private correctionColorsCleanup: (() => void) | null = null;
+  private underlineStyle: UnderlineStyle = STORAGE_DEFAULTS[STORAGE_KEYS.UNDERLINE_STYLE] as UnderlineStyle;
+  private underlineStyleCleanup: (() => void) | null = null;
   private autoCorrectEnabled: boolean = STORAGE_DEFAULTS[STORAGE_KEYS.AUTO_CORRECT] as boolean;
   private proofreadShortcut: string = STORAGE_DEFAULTS[STORAGE_KEYS.PROOFREAD_SHORTCUT] as string;
   private autoCorrectCleanup: (() => void) | null = null;
@@ -109,9 +120,10 @@ export class ProofreadingManager {
     if (this.popover) {
       const handlePopoverHide = () => {
         this.highlighter.clearSelection();
-        if (this.activeCanvasHighlighter) {
-          this.activeCanvasHighlighter.clearSelection();
-          this.activeCanvasHighlighter = null;
+        if (this.activeSessionElement) {
+          const session = this.elementSessions.get(this.activeSessionElement);
+          session?.clearActiveIssue();
+          this.activeSessionElement = null;
         }
       };
       this.popover.addEventListener('proofly:popover-hide', handlePopoverHide);
@@ -132,6 +144,9 @@ export class ProofreadingManager {
         return;
       }
       this.registerElement(target);
+      if (this.isTextareaOrInput(target)) {
+        return;
+      }
       if (this.shouldAutoProofread()) {
         this.controller.scheduleProofread(target);
       }
@@ -194,7 +209,7 @@ export class ProofreadingManager {
     this.controller.registerTarget({ element, hooks });
 
     if (this.isTextareaOrInput(element)) {
-      this.ensureCanvasHighlighter(element as HTMLTextAreaElement | HTMLInputElement);
+      this.ensureTargetSession(element as HTMLTextAreaElement | HTMLInputElement);
     } else {
       this.setupContentEditableCallbacks(element);
     }
@@ -204,10 +219,10 @@ export class ProofreadingManager {
     if (this.isTextareaOrInput(element)) {
       return {
         highlight: (corrections) => {
-          this.highlightWithCanvas(element as HTMLTextAreaElement | HTMLInputElement, corrections);
+          this.highlightWithSession(element as HTMLTextAreaElement | HTMLInputElement, corrections);
         },
         clearHighlights: () => {
-          this.clearCanvasHighlights(element as HTMLTextAreaElement | HTMLInputElement);
+          this.clearSessionHighlights(element as HTMLTextAreaElement | HTMLInputElement);
         },
         onCorrectionsChange: (corrections) => {
           this.handleCorrectionsChange(element, corrections);
@@ -228,34 +243,99 @@ export class ProofreadingManager {
     };
   }
 
-  private ensureCanvasHighlighter(element: HTMLTextAreaElement | HTMLInputElement): CanvasHighlighter {
-    let canvasHighlighter = this.elementCanvasHighlighters.get(element);
-    if (!canvasHighlighter) {
-      canvasHighlighter = new CanvasHighlighter(element);
-      canvasHighlighter.setCorrectionColors(this.correctionColors);
-      canvasHighlighter.setOnCorrectionClick((correction, x, y) => {
-        this.activeCanvasHighlighter = canvasHighlighter!;
-        this.showPopoverForCorrection(element, correction, x, y);
+  private ensureTargetSession(element: HTMLTextAreaElement | HTMLInputElement): TargetSession {
+    let session = this.elementSessions.get(element);
+    if (!session) {
+      session = new TargetSession(element, {
+        onNeedProofread: () => {
+          if (this.shouldAutoProofread()) {
+            this.controller.scheduleProofread(element);
+          }
+        },
+        onUnderlineClick: (issueId, pageRect) => {
+          this.activeSessionElement = element;
+          const lookup = this.elementIssueLookup.get(element);
+          const correction = lookup?.get(issueId);
+          if (!correction) {
+            return;
+          }
+          const anchorX = pageRect.left + pageRect.width / 2;
+          const anchorY = pageRect.top + pageRect.height;
+          this.showPopoverForCorrection(element, correction, anchorX, anchorY);
+        },
+        onInvalidateIssues: () => {
+          this.clearSessionHighlights(element);
+        },
       });
-      this.elementCanvasHighlighters.set(element, canvasHighlighter);
+      session.attach();
+      session.setColorPalette(this.buildIssuePalette());
+      session.setUnderlineStyle(this.underlineStyle);
+      this.elementSessions.set(element, session);
     }
-    return canvasHighlighter;
+    return session;
   }
 
-  private highlightWithCanvas(
+  private highlightWithSession(
     element: HTMLTextAreaElement | HTMLInputElement,
     corrections: ProofreadCorrection[]
   ): void {
-    const highlighter = this.ensureCanvasHighlighter(element);
-    highlighter.drawHighlights(corrections);
+    const session = this.ensureTargetSession(element);
+    const mapped = this.mapCorrectionsToIssues(corrections);
+    const lookup = new Map<string, ProofreadCorrection>();
+    const issues: SessionIssue[] = [];
+    for (const { issue, correction } of mapped) {
+      lookup.set(issue.id, correction);
+      issues.push(issue);
+    }
+    if (issues.length > 0) {
+      this.elementIssueLookup.set(element, lookup);
+    } else {
+      this.elementIssueLookup.delete(element);
+    }
+    session.setIssues(issues);
   }
 
-  private clearCanvasHighlights(element: HTMLTextAreaElement | HTMLInputElement): void {
-    const highlighter = this.elementCanvasHighlighters.get(element);
-    highlighter?.clearHighlights();
-    if (this.activeCanvasHighlighter === highlighter) {
-      this.activeCanvasHighlighter = null;
+  private clearSessionHighlights(element: HTMLTextAreaElement | HTMLInputElement): void {
+    const session = this.elementSessions.get(element);
+    session?.setIssues([]);
+    session?.clearActiveIssue();
+    this.elementIssueLookup.delete(element);
+    if (this.activeSessionElement === element) {
+      this.activeSessionElement = null;
     }
+  }
+
+  private mapCorrectionsToIssues(
+    corrections: ProofreadCorrection[]
+  ): Array<{ issue: SessionIssue; correction: ProofreadCorrection }> {
+    return corrections
+      .map((correction, index) => ({ correction, index }))
+      .filter(({ correction }) => correction.endIndex > correction.startIndex)
+      .map(({ correction, index }) => ({
+        issue: {
+          id: this.buildIssueId(correction, index),
+          start: correction.startIndex,
+          end: correction.endIndex,
+          type: this.toIssueType(correction),
+        },
+        correction,
+      }));
+  }
+
+  private buildIssueId(correction: ProofreadCorrection, index: number): string {
+    return `${correction.startIndex}:${correction.endIndex}:${correction.type ?? 'unknown'}:${index}`;
+  }
+
+  private toIssueType(correction: ProofreadCorrection): SessionIssue['type'] {
+    const type = correction.type as CorrectionTypeKey | undefined;
+    if (type && this.correctionColors[type]) {
+      return type;
+    }
+    return 'spelling';
+  }
+
+  private buildIssuePalette(): IssueColorPalette {
+    return structuredClone(this.correctionColors);
   }
 
   private setupContentEditableCallbacks(element: HTMLElement): void {
@@ -334,7 +414,7 @@ export class ProofreadingManager {
       this.handleCorrectionFromPopover(element, applied);
     });
 
-    this.popover.show(x, y + 20);
+    this.popover.show(x, y);
   }
 
   private updateSidebar(element: HTMLElement, corrections: ProofreadCorrection[]): void {
@@ -361,15 +441,17 @@ export class ProofreadingManager {
   }
 
   private async initializeCorrectionPreferences(): Promise<void> {
-    const { enabledCorrectionTypes, correctionColors } = await getStorageValues([
+    const { enabledCorrectionTypes, correctionColors, underlineStyle } = await getStorageValues([
       STORAGE_KEYS.ENABLED_CORRECTION_TYPES,
       STORAGE_KEYS.CORRECTION_COLORS,
+      STORAGE_KEYS.UNDERLINE_STYLE,
     ]);
 
     this.enabledCorrectionTypes = new Set(enabledCorrectionTypes);
 
     const colorConfig: CorrectionColorConfig = structuredClone(correctionColors);
     this.updateCorrectionColors(colorConfig);
+    this.updateUnderlineStyle(underlineStyle);
 
     this.cleanupHandler(this.correctionTypeCleanup);
     this.correctionTypeCleanup = onStorageChange(
@@ -387,6 +469,14 @@ export class ProofreadingManager {
         const updatedConfig: CorrectionColorConfig = structuredClone(newValue);
         this.updateCorrectionColors(updatedConfig);
         this.refreshCorrectionsForTrackedElements();
+      }
+    );
+
+    this.cleanupHandler(this.underlineStyleCleanup);
+    this.underlineStyleCleanup = onStorageChange(
+      STORAGE_KEYS.UNDERLINE_STYLE,
+      (newValue) => {
+        this.updateUnderlineStyle(newValue);
       }
     );
   }
@@ -428,7 +518,16 @@ export class ProofreadingManager {
     this.correctionColors = buildCorrectionColorThemes(colorConfig);
     setActiveCorrectionColors(colorConfig);
     this.highlighter.setCorrectionColors(this.correctionColors);
-    this.elementCanvasHighlighters.forEach((highlighter) => highlighter.setCorrectionColors(this.correctionColors));
+    const palette = this.buildIssuePalette();
+    this.elementSessions.forEach((session) => session.setColorPalette(palette));
+  }
+
+  private updateUnderlineStyle(style: UnderlineStyle): void {
+    if (this.underlineStyle === style) {
+      return;
+    }
+    this.underlineStyle = style;
+    this.elementSessions.forEach((session) => session.setUnderlineStyle(style));
   }
 
   private refreshCorrectionsForTrackedElements(): void {
@@ -570,8 +669,9 @@ export class ProofreadingManager {
     this.popover?.remove();
     this.observer?.disconnect();
 
-    this.elementCanvasHighlighters.forEach((highlighter) => highlighter.destroy());
-    this.elementCanvasHighlighters.clear();
+    this.elementSessions.forEach((session) => session.detach());
+    this.elementSessions.clear();
+    this.elementIssueLookup.clear();
 
     this.proofreaderServices.forEach((service) => service.destroy());
     this.proofreaderServices.clear();
@@ -590,6 +690,9 @@ export class ProofreadingManager {
 
     this.cleanupHandler(this.correctionColorsCleanup);
     this.correctionColorsCleanup = null;
+
+    this.cleanupHandler(this.underlineStyleCleanup);
+    this.underlineStyleCleanup = null;
 
     this.cleanupHandler(this.autoCorrectCleanup);
     this.autoCorrectCleanup = null;

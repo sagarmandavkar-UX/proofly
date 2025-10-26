@@ -469,6 +469,8 @@ export class ContentHighlighter {
       return;
     }
 
+    element.setAttribute('data-proofly-contenteditable', 'true');
+
     this.clearHighlightsForElement(element);
 
     const textNode = this.getFirstTextNode(element);
@@ -588,7 +590,7 @@ export class ContentHighlighter {
   }
 }
 
-const HIGHLIGHT_STYLE_ID = 'prfly-highlight-style';
+const HIGHLIGHT_STYLE_ID = 'proofly-highlight-style';
 let highlightStyleElement: HTMLStyleElement | null = null;
 
 function ensureHighlightStyleElement(): HTMLStyleElement {
@@ -615,7 +617,7 @@ function updateHighlightStyle(style: UnderlineStyle, colors: CorrectionColorThem
   styleElement.textContent = ERROR_TYPES.map((errorType) => {
     const theme = colors[errorType];
     return `
-    ::highlight(${errorType}) {
+    [data-proofly-contenteditable]::highlight(${errorType}) {
       background-color: transparent;
       text-decoration: underline;
       text-decoration-color: ${theme.color};
@@ -625,7 +627,7 @@ function updateHighlightStyle(style: UnderlineStyle, colors: CorrectionColorThem
       text-underline-offset: 2px;
     }`;
   }).join('\n').concat(`
-  ::highlight(${SELECTED_HIGHLIGHT}) {
+  [data-proofly-contenteditable]::highlight(${SELECTED_HIGHLIGHT}) {
     background-color: var(--prfly-selected-highlight-bg, transparent);
     text-decoration: underline;
     text-decoration-color: var(--prfly-selected-highlight-color, currentColor);

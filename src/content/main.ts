@@ -29,9 +29,7 @@ async function initProofreading() {
     await manager.initialize();
 
     logger.info('Proofreading enabled');
-    injectContentScriptMarker();
   } catch (error) {
-    removeInjectedMarker();
     console.error('Failed to initialize:', error);
   }
 }
@@ -55,18 +53,4 @@ if (document.readyState === 'loading') {
 export function onExecute(config?: { perf?: { injectTime: number; loadTime: number } }) {
   logger.info(config, 'onExecute called with config');
   // Already executed above, so this is a no-op
-}
-
-function injectContentScriptMarker() {
-  const meta = document.createElement('meta')
-  meta.name = 'prfly-content-script-injected'
-  meta.content = 'true'
-  document.head.appendChild(meta)
-}
-
-function removeInjectedMarker() {
-  const marker = document.querySelector('meta[name="prfly-content-script-injected"]')
-  if (marker) {
-    marker.remove()
-  }
 }

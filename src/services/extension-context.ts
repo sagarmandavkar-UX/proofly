@@ -8,18 +8,6 @@ export type ExtensionContext =
   | 'unknown'
 
 export function getExtensionContext(): ExtensionContext {
-  // Check if we're in a content script
-  if (
-    typeof window !== 'undefined' &&
-    window.document &&
-    !chrome.extension?.getBackgroundPage
-  ) {
-    const contentScriptMarker = document.querySelector('meta[name="prfly-content-script-injected"]')
-    if (contentScriptMarker) {
-      return 'content-script'
-    }
-  }
-
   // Check if we're in the background script/service worker
   if (
     typeof globalThis !== 'undefined' &&
@@ -47,5 +35,5 @@ export function getExtensionContext(): ExtensionContext {
     }
   }
 
-  return 'unknown'
+  return 'content-script'
 }
