@@ -67,8 +67,10 @@ export class ProofreadingManager {
   private underlineStyleCleanup: (() => void) | null = null;
   private autoCorrectEnabled: boolean = STORAGE_DEFAULTS[STORAGE_KEYS.AUTO_CORRECT] as boolean;
   private proofreadShortcut: string = STORAGE_DEFAULTS[STORAGE_KEYS.PROOFREAD_SHORTCUT] as string;
+  private autofixOnDoubleClick: boolean = STORAGE_DEFAULTS[STORAGE_KEYS.AUTOFIX_ON_DOUBLE_CLICK] as boolean;
   private autoCorrectCleanup: (() => void) | null = null;
   private shortcutStorageCleanup: (() => void) | null = null;
+  private autofixCleanup: (() => void) | null = null;
   private shortcutKeydownHandler: ((event: KeyboardEvent) => void) | null = null;
   private readonly isMacPlatform = /mac/i.test(navigator.platform);
 
@@ -263,6 +265,15 @@ export class ProofreadingManager {
           const anchorY = pageRect.top + pageRect.height;
           this.showPopoverForCorrection(element, correction, anchorX, anchorY);
         },
+        onUnderlineDoubleClick: (issueId) => {
+          const lookup = this.elementIssueLookup.get(element);
+          const correction = lookup?.get(issueId);
+          if (!correction) {
+            return;
+          }
+          // Apply correction immediately without showing popover
+          this.controller.applyCorrection(element, correction);
+        },
         onInvalidateIssues: () => {
           this.clearSessionHighlights(element);
         },
@@ -270,6 +281,7 @@ export class ProofreadingManager {
       session.attach();
       session.setColorPalette(this.buildIssuePalette());
       session.setUnderlineStyle(this.underlineStyle);
+      session.setAutofixOnDoubleClick(this.autofixOnDoubleClick);
       this.elementSessions.set(element, session);
     }
     return session;
@@ -482,13 +494,15 @@ export class ProofreadingManager {
   }
 
   private async initializeProofreadPreferences(): Promise<void> {
-    const { autoCorrect, proofreadShortcut } = await getStorageValues([
+    const { autoCorrect, proofreadShortcut, autofixOnDoubleClick } = await getStorageValues([
       STORAGE_KEYS.AUTO_CORRECT,
       STORAGE_KEYS.PROOFREAD_SHORTCUT,
+      STORAGE_KEYS.AUTOFIX_ON_DOUBLE_CLICK,
     ]);
 
     this.autoCorrectEnabled = autoCorrect;
     this.proofreadShortcut = proofreadShortcut;
+    this.autofixOnDoubleClick = autofixOnDoubleClick;
     this.setupShortcutListener();
 
     this.cleanupHandler(this.autoCorrectCleanup);
@@ -512,6 +526,14 @@ export class ProofreadingManager {
         this.proofreadShortcut = newValue;
       }
     );
+
+    this.cleanupHandler(this.autofixCleanup);
+    this.autofixCleanup = onStorageChange(
+      STORAGE_KEYS.AUTOFIX_ON_DOUBLE_CLICK,
+      (newValue) => {
+        this.updateAutofixOnDoubleClick(newValue);
+      }
+    );
   }
 
   private updateCorrectionColors(colorConfig: CorrectionColorConfig): void {
@@ -528,6 +550,11 @@ export class ProofreadingManager {
     }
     this.underlineStyle = style;
     this.elementSessions.forEach((session) => session.setUnderlineStyle(style));
+  }
+
+  private updateAutofixOnDoubleClick(enabled: boolean): void {
+    this.autofixOnDoubleClick = enabled;
+    this.elementSessions.forEach((session) => session.setAutofixOnDoubleClick(enabled));
   }
 
   private refreshCorrectionsForTrackedElements(): void {

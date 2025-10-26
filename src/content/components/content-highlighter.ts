@@ -28,20 +28,24 @@ export class ContentHighlighter {
   private elementRanges = new Map<HTMLElement, Range[]>();
   private popover: CorrectionPopover | null = null;
   private clickHandlers = new Map<HTMLElement, (e: MouseEvent) => void>();
+  private dblClickHandlers = new Map<HTMLElement, (e: MouseEvent) => void>();
   private onCorrectionAppliedCallbacks = new Map<HTMLElement, (updatedCorrections: ProofreadCorrection[]) => void>();
   private applyCorrectionCallbacks = new Map<HTMLElement, (element: HTMLElement, correction: ProofreadCorrection) => void>();
   private underlineStyleCleanup: (() => void) | null = null;
+  private autofixCleanup: (() => void) | null = null;
   private selectedHighlight: Highlight | null = null;
   private selectedElement: HTMLElement | null = null;
   private selectedCorrectionRange: { start: number; end: number; type?: string } | null = null;
   private popoverHideCleanup: (() => void) | null = null;
   private correctionColors: CorrectionColorThemeMap = getActiveCorrectionColors();
   private currentUnderlineStyle: UnderlineStyle = 'solid';
+  private autofixOnDoubleClick: boolean = false;
 
   constructor() {
     this.initializeHighlights();
     this.initializePopover();
     void this.initializeUnderlineStyle();
+    void this.initializeAutofixSetting();
   }
 
   setOnCorrectionApplied(element: HTMLElement, callback: (updatedCorrections: ProofreadCorrection[]) => void): void {
@@ -93,6 +97,22 @@ export class ContentHighlighter {
     );
   }
 
+  private async initializeAutofixSetting(): Promise<void> {
+    try {
+      this.autofixOnDoubleClick = await getStorageValue(STORAGE_KEYS.AUTOFIX_ON_DOUBLE_CLICK);
+    } catch (error) {
+      logger.error(error, 'Failed to load autofix setting');
+      this.autofixOnDoubleClick = false;
+    }
+
+    this.autofixCleanup = onStorageChange(
+      STORAGE_KEYS.AUTOFIX_ON_DOUBLE_CLICK,
+      (newValue) => {
+        this.autofixOnDoubleClick = newValue;
+      }
+    );
+  }
+
   private applyHighlightStyles(): void {
     if (!('highlights' in CSS)) {
       return;
@@ -140,15 +160,26 @@ export class ContentHighlighter {
   private attachClickHandler(element: HTMLElement): void {
     if (this.clickHandlers.has(element)) return;
 
-    const handler = (e: MouseEvent) => {
+    const clickHandler = (e: MouseEvent) => {
       this.handleElementClick(element, e);
     };
 
-    element.addEventListener('click', handler);
-    this.clickHandlers.set(element, handler);
+    const dblClickHandler = (e: MouseEvent) => {
+      this.handleElementDoubleClick(element, e);
+    };
+
+    element.addEventListener('click', clickHandler);
+    element.addEventListener('dblclick', dblClickHandler);
+    this.clickHandlers.set(element, clickHandler);
+    this.dblClickHandlers.set(element, dblClickHandler);
   }
 
   private handleElementClick(element: HTMLElement, event: MouseEvent): void {
+    // If autofix is enabled, prevent popover on single click
+    if (this.autofixOnDoubleClick) {
+      return;
+    }
+
     if (!this.popover) {
       logger.warn('Popover not initialized');
       return;
@@ -193,6 +224,36 @@ export class ContentHighlighter {
 
     logger.info({ x, y }, 'Showing popover at');
     this.popover.show(x, y);
+  }
+
+  private handleElementDoubleClick(element: HTMLElement, event: MouseEvent): void {
+    // Only process double-click if autofix is enabled
+    if (!this.autofixOnDoubleClick) {
+      return;
+    }
+
+    const corrections = this.highlightedElements.get(element);
+    if (!corrections || corrections.length === 0) {
+      logger.info('No corrections found for element');
+      return;
+    }
+
+    // Find which correction was double-clicked using CSS.highlights API
+    const clickedCorrection = this.findCorrectionAtPoint(element, event.clientX, event.clientY, corrections);
+
+    logger.info({
+      clientX: event.clientX,
+      clientY: event.clientY
+    },'Double-click detected at coordinates:');
+
+    logger.info(clickedCorrection, 'Found correction for autofix');
+
+    if (!clickedCorrection) {
+      return;
+    }
+
+    // Apply correction immediately without showing popover
+    this.applyCorrection(element, clickedCorrection);
   }
 
   private findCorrectionAtPoint(element: HTMLElement, x: number, y: number, corrections: ProofreadCorrection[]): ProofreadCorrection | null {
@@ -540,10 +601,16 @@ export class ContentHighlighter {
     this.observers.get(element)?.disconnect();
     this.observers.delete(element);
 
-    const handler = this.clickHandlers.get(element);
-    if (handler) {
-      element.removeEventListener('click', handler);
+    const clickHandler = this.clickHandlers.get(element);
+    if (clickHandler) {
+      element.removeEventListener('click', clickHandler);
       this.clickHandlers.delete(element);
+    }
+
+    const dblClickHandler = this.dblClickHandlers.get(element);
+    if (dblClickHandler) {
+      element.removeEventListener('dblclick', dblClickHandler);
+      this.dblClickHandlers.delete(element);
     }
   }
 
@@ -556,6 +623,11 @@ export class ContentHighlighter {
       element.removeEventListener('click', handler);
     });
     this.clickHandlers.clear();
+
+    this.dblClickHandlers.forEach((handler, element) => {
+      element.removeEventListener('dblclick', handler);
+    });
+    this.dblClickHandlers.clear();
 
     if (this.popover) {
       this.popover.remove();
@@ -573,6 +645,11 @@ export class ContentHighlighter {
     if (this.underlineStyleCleanup) {
       this.underlineStyleCleanup();
       this.underlineStyleCleanup = null;
+    }
+
+    if (this.autofixCleanup) {
+      this.autofixCleanup();
+      this.autofixCleanup = null;
     }
 
     this.selectedHighlight = null;

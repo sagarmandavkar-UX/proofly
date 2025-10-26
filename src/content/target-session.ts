@@ -26,6 +26,7 @@ export type IssueColorPalette = CorrectionColorThemeMap;
 interface Hooks {
   onNeedProofread?: (value: string) => void;
   onUnderlineClick?: (issueId: string, pageRect: DOMRect) => void;
+  onUnderlineDoubleClick?: (issueId: string, issue: Issue) => void;
   onInvalidateIssues?: () => void;
 }
 
@@ -59,6 +60,7 @@ export class TargetSession {
   private colorPalette: IssueColorPalette = DEFAULT_COLOR_PALETTE;
   private activeIssueId: string | null = null;
   private underlineStyle: UnderlineStyle = 'solid';
+  private autofixOnDoubleClick: boolean = false;
 
   private resizeObserver: ResizeObserver | null = null;
   private mutationObserver: MutationObserver | null = null;
@@ -107,6 +109,11 @@ export class TargetSession {
   };
 
   private readonly handleUnderlineClick = (event: MouseEvent) => {
+    // If autofix is enabled, prevent popover on single click
+    if (this.autofixOnDoubleClick) {
+      return;
+    }
+
     if (!this.hooks.onUnderlineClick) {
       return;
     }
@@ -128,6 +135,33 @@ export class TargetSession {
     );
     this.setActiveIssue(issueId);
     this.hooks.onUnderlineClick(issueId, pageRect);
+  };
+
+  private readonly handleUnderlineDoubleClick = (event: MouseEvent) => {
+    // Only process double-click if autofix is enabled
+    if (!this.autofixOnDoubleClick) {
+      return;
+    }
+
+    if (!this.hooks.onUnderlineDoubleClick) {
+      return;
+    }
+
+    const node = event.target as HTMLElement | null;
+    if (!node || !node.classList.contains('u')) {
+      return;
+    }
+    const issueId = node.dataset.issueId;
+    if (!issueId) {
+      return;
+    }
+
+    const issue = this.issues.find(i => i.id === issueId);
+    if (!issue) {
+      return;
+    }
+
+    this.hooks.onUnderlineDoubleClick(issueId, issue);
   };
 
   constructor(
@@ -155,6 +189,7 @@ export class TargetSession {
     this.target.addEventListener('input', this.handleInput);
     this.target.addEventListener('scroll', this.handleScroll, { passive: true });
     underlines.addEventListener('click', this.handleUnderlineClick);
+    underlines.addEventListener('dblclick', this.handleUnderlineDoubleClick);
     underlines.addEventListener('wheel', this.handleOverlayWheel, { passive: false });
     window.addEventListener('scroll', this.handleWindowScroll, true);
     window.addEventListener('resize', this.handleWindowResize);
@@ -195,6 +230,7 @@ export class TargetSession {
     this.renderer.clear();
     this.activeIssueId = null;
     this.overlay.elements.underlines.removeEventListener('click', this.handleUnderlineClick);
+    this.overlay.elements.underlines.removeEventListener('dblclick', this.handleUnderlineDoubleClick);
     this.overlay.elements.underlines.removeEventListener('wheel', this.handleOverlayWheel);
     this.target.removeEventListener('input', this.handleInput);
     this.target.removeEventListener('scroll', this.handleScroll);
@@ -235,6 +271,10 @@ export class TargetSession {
       this.needsRender = true;
       this.raf.schedule();
     }
+  }
+
+  setAutofixOnDoubleClick(enabled: boolean): void {
+    this.autofixOnDoubleClick = enabled;
   }
 
   clearActiveIssue(): void {

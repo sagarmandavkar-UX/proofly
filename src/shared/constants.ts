@@ -13,6 +13,7 @@ export const STORAGE_KEYS = {
   ENABLED_CORRECTION_TYPES: 'enabledCorrectionTypes',
   CORRECTION_COLORS: 'correctionColors',
   PROOFREAD_SHORTCUT: 'proofreadShortcut',
+  AUTOFIX_ON_DOUBLE_CLICK: 'autofixOnDoubleClick',
 } as const;
 
 /**
@@ -27,4 +28,5 @@ export const STORAGE_DEFAULTS = {
   [STORAGE_KEYS.ENABLED_CORRECTION_TYPES]: ALL_CORRECTION_TYPES,
   [STORAGE_KEYS.CORRECTION_COLORS]: getDefaultCorrectionColorConfig(),
   [STORAGE_KEYS.PROOFREAD_SHORTCUT]: 'Mod+Shift+P',
+  [STORAGE_KEYS.AUTOFIX_ON_DOUBLE_CLICK]: false,
 } as const;

@@ -59,12 +59,13 @@ async function initOptions() {
       location.reload();
     });
   } else {
-    const { autoCorrect, underlineStyle, enabledCorrectionTypes, correctionColors, proofreadShortcut } = await getStorageValues([
+    const { autoCorrect, underlineStyle, enabledCorrectionTypes, correctionColors, proofreadShortcut, autofixOnDoubleClick } = await getStorageValues([
       STORAGE_KEYS.AUTO_CORRECT,
       STORAGE_KEYS.UNDERLINE_STYLE,
       STORAGE_KEYS.ENABLED_CORRECTION_TYPES,
       STORAGE_KEYS.CORRECTION_COLORS,
       STORAGE_KEYS.PROOFREAD_SHORTCUT,
+      STORAGE_KEYS.AUTOFIX_ON_DOUBLE_CLICK,
     ]);
 
     let correctionColorConfig: CorrectionColorConfig = structuredClone(correctionColors);
@@ -74,6 +75,7 @@ async function initOptions() {
     let currentEnabledCorrectionTypes = [...enabledCorrectionTypes];
     let currentProofreadShortcut = proofreadShortcut;
     let autoCorrectEnabled = autoCorrect;
+    let autofixEnabled = autofixOnDoubleClick;
 
     const DEFAULT_PROOFREAD_SHORTCUT = STORAGE_DEFAULTS[STORAGE_KEYS.PROOFREAD_SHORTCUT];
     const persistCorrectionColors = debounce((config: CorrectionColorConfig) => {
@@ -232,7 +234,21 @@ async function initOptions() {
                   </div>
                 </prfly-checkbox>
               </div>
-              
+
+              <div class="option-card">
+                <prfly-checkbox
+                  id="autofixOnDoubleClick"
+                  class="option-card option-card--single"
+                  aria-labelledby="autofixTitle"
+                  ${autofixOnDoubleClick ? 'checked' : ''}
+                >
+                  <div class="setting-option-content">
+                    <span id="autofixTitle" class="setting-option-title">Autofix on double-click</span>
+                    <span class="setting-option-description">Double-click issues to apply corrections immediately. When enabled, single-click won't show the correction popover.</span>
+                  </div>
+                </prfly-checkbox>
+              </div>
+
               <div class="option-card option-card--shortcut">
                 <div class="setting-option-content">
                   <span id="manualTriggerTitle" class="setting-option-title">Manual trigger</span>
@@ -293,6 +309,15 @@ async function initOptions() {
         if (autoCorrectEnabled) {
           void liveTestControls?.proofread();
         }
+      });
+    }
+
+    const autofixCheckbox = document.querySelector<ProoflyCheckbox>('prfly-checkbox#autofixOnDoubleClick');
+    if (autofixCheckbox) {
+      autofixCheckbox.checked = autofixEnabled;
+      autofixCheckbox.addEventListener('change', async () => {
+        autofixEnabled = autofixCheckbox.checked;
+        await setStorageValue(STORAGE_KEYS.AUTOFIX_ON_DOUBLE_CLICK, autofixEnabled);
       });
     }
 
@@ -471,6 +496,13 @@ async function initOptions() {
       }
       if (newValue) {
         void liveTestControls?.proofread();
+      }
+    });
+
+    onStorageChange(STORAGE_KEYS.AUTOFIX_ON_DOUBLE_CLICK, (newValue) => {
+      autofixEnabled = newValue;
+      if (autofixCheckbox) {
+        autofixCheckbox.checked = newValue;
       }
     });
 
