@@ -84,10 +84,8 @@ export class ShadowOverlay {
         mask-image: none;
       }
       .u[data-underline-style="dotted"]::after {
-         background-image: linear-gradient(to right, currentColor 50%, transparent 50%);
-         background-size: 4px 2px;
-         background-repeat: repeat-x;
-         background-color: transparent;
+        border-bottom: currentColor dotted 2px;
+        background: none;
       }
       .u[data-underline-style="wavy"]::after {
         mask-image: ${waveMask};
