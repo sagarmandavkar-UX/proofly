@@ -288,7 +288,7 @@ async function initOptions() {
             <div
               id="liveTestEditor"
               class="live-test-editor"
-              contenteditable="true"
+              contenteditable="plaintext-only"
               spellcheck="false"
               data-placeholder="Start typing to check for errors..."
             ></div>
