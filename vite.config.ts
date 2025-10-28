@@ -16,7 +16,7 @@ export default defineConfig(({ command }) => ({
   },
   plugins: [
     crx({ manifest }),
-    zip({ outDir: 'release', outFileName: `crx-${name}-${version}.zip` }),
+    zip({ outDir: 'release', outFileName: `crx-${name.toLowerCase()}-${version}.zip` }),
   ],
   server: {
     cors: {
