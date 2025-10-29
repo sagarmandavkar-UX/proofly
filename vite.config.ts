@@ -12,6 +12,7 @@ export default defineConfig(({ command }) => ({
     },
   },
   build: {
+    target: 'esnext',
     outDir: command === 'serve' ? 'dev' : 'dist',
   },
   plugins: [

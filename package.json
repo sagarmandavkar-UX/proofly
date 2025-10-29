@@ -12,12 +12,15 @@
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.0.3",
     "@types/chrome": "^0.1.1",
-    "@types/node": "^24.0.15",
     "@types/dom-chromium-ai": "^0.0.10",
+    "@types/node": "^24.0.15",
+    "pino": "^10.1.0",
     "typescript": "~5.8.3",
     "user-agent-data-types": "^0.4.2",
     "vite": "^7.0.5",
-    "vite-plugin-zip-pack": "^1.2.4",
-    "pino": "^10.1.0"
+    "vite-plugin-zip-pack": "^1.2.4"
+  },
+  "dependencies": {
+    "@webcomponents/webcomponentsjs": "^2.8.0"
   }
 }

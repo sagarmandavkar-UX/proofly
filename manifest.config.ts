@@ -23,9 +23,15 @@ export default defineManifest({
     type: 'module'
   },
   content_scripts: [{
-    js: ['src/content/main.ts'],
-    matches: ['https://*/*', 'http://*/*'],
-  }],
+      js: ['src/content/polyfills/webcomponents.ts'],
+      matches: ['<all_urls>'],
+      run_at: 'document_start',
+    },
+    {
+      js: ['src/content/main.ts'],
+      matches: ['<all_urls>'],
+      run_at: 'document_idle',
+    }],
   permissions: [
     'sidePanel',
     'tabs',
