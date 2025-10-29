@@ -169,8 +169,6 @@ export class ProoflyIssuesPanel extends HTMLElement {
 
   private getStyles(): string {
     return `
-      @import url('../../shared/styles/tokens.css');
-
       :host {
         display: block;
         font-family: var(--font-family-base);
