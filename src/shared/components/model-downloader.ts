@@ -363,7 +363,7 @@ export class ModelDownloaderComponent extends HTMLElement {
 
     const title = document.createElement('h2');
     title.className = 'title';
-    title.textContent = 'AI Proofreader Setup';
+    title.textContent = 'Proofly Setup';
 
     const description = document.createElement('p');
     description.className = 'description';
