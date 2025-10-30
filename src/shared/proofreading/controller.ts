@@ -37,9 +37,7 @@ const defaultGetElementText = (element: HTMLElement): string => {
 };
 
 const isSameCorrection = (a: ProofreadCorrection, b: ProofreadCorrection): boolean =>
-  a.startIndex === b.startIndex &&
-  a.endIndex === b.endIndex &&
-  a.correction === b.correction;
+  a.startIndex === b.startIndex && a.endIndex === b.endIndex && a.correction === b.correction;
 
 export class ProofreadingController {
   private readonly states = new Map<HTMLElement, ElementState>();

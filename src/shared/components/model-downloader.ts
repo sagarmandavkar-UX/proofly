@@ -28,7 +28,7 @@ export class ModelDownloaderComponent extends HTMLElement {
   }
 
   disconnectedCallback() {
-    this.cleanup.forEach(fn => fn());
+    this.cleanup.forEach((fn) => fn());
     this.cleanup = [];
     this.downloader.destroy();
     if (this.abortController) {
@@ -41,7 +41,7 @@ export class ModelDownloaderComponent extends HTMLElement {
       if (!('Proofreader' in window)) {
         this.showError(
           'Proofreader API not found. This feature requires Chrome 128+ with the AI Proofreader API enabled. ' +
-          'Please check chrome://flags/#optimization-guide-on-device-model and enable "Enables optimization guide on device"'
+            'Please check chrome://flags/#optimization-guide-on-device-model and enable "Enables optimization guide on device"'
         );
         return;
       }
@@ -53,10 +53,10 @@ export class ModelDownloaderComponent extends HTMLElement {
       if (proofreaderAvailability === 'unavailable') {
         this.showError(
           'Proofreader API is unavailable on this device. Requirements:\n' +
-          '• Chrome 128 or later\n' +
-          '• At least 22 GB free storage\n' +
-          '• GPU with 4GB+ VRAM\n' +
-          '• Enable chrome://flags/#optimization-guide-on-device-model'
+            '• Chrome 128 or later\n' +
+            '• At least 22 GB free storage\n' +
+            '• GPU with 4GB+ VRAM\n' +
+            '• Enable chrome://flags/#optimization-guide-on-device-model'
         );
         return;
       }
@@ -65,7 +65,7 @@ export class ModelDownloaderComponent extends HTMLElement {
         await chrome.storage.local.set({
           [STORAGE_KEYS.MODEL_DOWNLOADED]: true,
           [STORAGE_KEYS.PROOFREADER_READY]: true,
-          [STORAGE_KEYS.MODEL_AVAILABILITY]: 'available'
+          [STORAGE_KEYS.MODEL_AVAILABILITY]: 'available',
         });
         this.showSuccess();
         return;
@@ -92,15 +92,17 @@ export class ModelDownloaderComponent extends HTMLElement {
       await chrome.storage.local.set({
         [STORAGE_KEYS.MODEL_DOWNLOADED]: true,
         [STORAGE_KEYS.PROOFREADER_READY]: true,
-        [STORAGE_KEYS.MODEL_AVAILABILITY]: 'available'
+        [STORAGE_KEYS.MODEL_AVAILABILITY]: 'available',
       });
 
       this.showSuccess();
 
-      this.dispatchEvent(new CustomEvent('download-complete', {
-        bubbles: true,
-        composed: true,
-      }));
+      this.dispatchEvent(
+        new CustomEvent('download-complete', {
+          bubbles: true,
+          composed: true,
+        })
+      );
     } catch (error) {
       if ((error as Error).name === 'AbortError') {
         this.showDownloadButton();
@@ -112,14 +114,14 @@ export class ModelDownloaderComponent extends HTMLElement {
     }
   }
 
-
   private updateProgress(progress: DownloadProgress) {
     if (!this.elements.progress || !this.elements.progressText) return;
 
     this.elements.progress.value = progress.progress;
 
     const percent = Math.floor(progress.progress * 100);
-    const modelLabel = progress.modelType === 'language-detector' ? 'Language Detection' : 'Proofreader';
+    const modelLabel =
+      progress.modelType === 'language-detector' ? 'Language Detection' : 'Proofreader';
     let text = `${modelLabel}: ${percent}%`;
 
     if (progress.state === 'downloading' && progress.bytesDownloaded && progress.totalBytes) {
@@ -367,7 +369,8 @@ export class ModelDownloaderComponent extends HTMLElement {
 
     const description = document.createElement('p');
     description.className = 'description';
-    description.textContent = 'Download the AI models to enable on-device proofreading with language detection. This is a one-time setup.';
+    description.textContent =
+      'Download the AI models to enable on-device proofreading with language detection. This is a one-time setup.';
 
     const requirements = document.createElement('div');
     requirements.className = 'requirements';

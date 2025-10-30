@@ -24,7 +24,7 @@ export class ShadowOverlay {
     const waveMask = `url("data:image/svg+xml;utf8,${encodeURIComponent(
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 4" preserveAspectRatio="none">' +
         '<path d="M0 2 Q3 0 6 2 T12 2" fill="none" stroke="black" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />' +
-      '</svg>'
+        '</svg>'
     )}")`;
     style.textContent = `
       :host {

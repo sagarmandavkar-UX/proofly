@@ -118,7 +118,10 @@ function registerRuntimeListeners(): void {
 
 async function refreshActiveTab(): Promise<void> {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
     if (!tab || tab.id === undefined) {
       activeTabId = null;
       currentWindowId = tab?.windowId;
@@ -137,8 +140,8 @@ async function refreshActiveTab(): Promise<void> {
 }
 
 function handleRuntimeMessage(
-    message: ProoflyMessage,
-    sender: chrome.runtime.MessageSender
+  message: ProoflyMessage,
+  sender: chrome.runtime.MessageSender
 ): boolean {
   if (message.type === 'proofly:issues-update') {
     return handleIssuesUpdateMessage(message, sender);
@@ -148,8 +151,8 @@ function handleRuntimeMessage(
 }
 
 function handleIssuesUpdateMessage(
-    message: IssuesUpdateMessage,
-    sender: chrome.runtime.MessageSender
+  message: IssuesUpdateMessage,
+  sender: chrome.runtime.MessageSender
 ): boolean {
   const senderTabId = sender.tab?.id;
   if (typeof senderTabId !== 'number') {
@@ -225,9 +228,19 @@ async function handleApplyIssue(event: CustomEvent<ApplyIssueDetail>): Promise<v
         issueId: event.detail.issueId,
       },
     });
-    logger.info({ elementId: event.detail.elementId, issueId: event.detail.issueId }, 'Apply issue dispatched');
+    logger.info(
+      { elementId: event.detail.elementId, issueId: event.detail.issueId },
+      'Apply issue dispatched'
+    );
   } catch (error) {
-    logger.error({ error, elementId: event.detail.elementId, issueId: event.detail.issueId }, 'Failed to apply issue from sidepanel');
+    logger.error(
+      {
+        error,
+        elementId: event.detail.elementId,
+        issueId: event.detail.issueId,
+      },
+      'Failed to apply issue from sidepanel'
+    );
   }
 }
 

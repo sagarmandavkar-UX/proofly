@@ -1,4 +1,4 @@
-import { logger } from "./logger.ts";
+import { logger } from './logger.ts';
 
 export interface ILanguageDetector {
   detect(text: string): Promise<LanguageDetectionResult[]>;
@@ -96,7 +96,10 @@ export function createLanguageDetectionService(
 
       // Filter results by confidence threshold and return the top result
       const topResult = results
-        .filter(result => result.confidence !== undefined && result.confidence >= config.confidenceThreshold)
+        .filter(
+          (result) =>
+            result.confidence !== undefined && result.confidence >= config.confidenceThreshold
+        )
         .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))[0];
 
       if (!topResult || !topResult.detectedLanguage) {
@@ -104,7 +107,9 @@ export function createLanguageDetectionService(
         return null;
       }
 
-      logger.info(`Detected language: ${topResult.detectedLanguage} (confidence: ${(topResult.confidence ?? 0).toFixed(2)})`);
+      logger.info(
+        `Detected language: ${topResult.detectedLanguage} (confidence: ${(topResult.confidence ?? 0).toFixed(2)})`
+      );
       return topResult.detectedLanguage;
     },
 

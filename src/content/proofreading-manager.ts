@@ -25,11 +25,7 @@ import {
 } from '../shared/utils/correction-types.ts';
 import { createProofreadingController } from '../shared/proofreading/controller.ts';
 import type { ProofreadingTargetHooks } from '../shared/proofreading/types.ts';
-import type {
-  ProofreadCorrection,
-  ProofreadResult,
-  UnderlineStyle,
-} from '../shared/types.ts';
+import type { ProofreadCorrection, ProofreadResult, UnderlineStyle } from '../shared/types.ts';
 import {
   TargetSession,
   type Issue as SessionIssue,
@@ -49,7 +45,10 @@ export class ProofreadingManager {
   private readonly highlighter = new ContentHighlighter();
   private readonly elementSessions = new Map<HTMLElement, TargetSession>();
   private readonly elementIssueLookup = new Map<HTMLElement, Map<string, ProofreadCorrection>>();
-  private readonly proofreaderServices = new Map<string, ReturnType<typeof createProofreadingService>>();
+  private readonly proofreaderServices = new Map<
+    string,
+    ReturnType<typeof createProofreadingService>
+  >();
   private readonly proofreadQueue = new AsyncQueue();
   private readonly registeredElements = new Set<HTMLElement>();
 
@@ -74,11 +73,15 @@ export class ProofreadingManager {
   private correctionTypeCleanup: (() => void) | null = null;
   private correctionColors: CorrectionColorThemeMap = getActiveCorrectionColors();
   private correctionColorsCleanup: (() => void) | null = null;
-  private underlineStyle: UnderlineStyle = STORAGE_DEFAULTS[STORAGE_KEYS.UNDERLINE_STYLE] as UnderlineStyle;
+  private underlineStyle: UnderlineStyle = STORAGE_DEFAULTS[
+    STORAGE_KEYS.UNDERLINE_STYLE
+  ] as UnderlineStyle;
   private underlineStyleCleanup: (() => void) | null = null;
   private autoCorrectEnabled: boolean = STORAGE_DEFAULTS[STORAGE_KEYS.AUTO_CORRECT] as boolean;
   private proofreadShortcut: string = STORAGE_DEFAULTS[STORAGE_KEYS.PROOFREAD_SHORTCUT] as string;
-  private autofixOnDoubleClick: boolean = STORAGE_DEFAULTS[STORAGE_KEYS.AUTOFIX_ON_DOUBLE_CLICK] as boolean;
+  private autofixOnDoubleClick: boolean = STORAGE_DEFAULTS[
+    STORAGE_KEYS.AUTOFIX_ON_DOUBLE_CLICK
+  ] as boolean;
   private autoCorrectCleanup: (() => void) | null = null;
   private shortcutStorageCleanup: (() => void) | null = null;
   private autofixCleanup: (() => void) | null = null;
@@ -380,7 +383,10 @@ export class ProofreadingManager {
     this.elementCorrections.set(element, corrections);
   }
 
-  private updateElementCorrectionLookup(element: HTMLElement, corrections: ProofreadCorrection[]): void {
+  private updateElementCorrectionLookup(
+    element: HTMLElement,
+    corrections: ProofreadCorrection[]
+  ): void {
     if (corrections.length === 0) {
       this.elementIssueLookup.delete(element);
       return;
@@ -397,7 +403,9 @@ export class ProofreadingManager {
   }
 
   private emitIssuesUpdate(): void {
-    const entries = Array.from(this.elementCorrections.entries()).filter(([, corrections]) => corrections.length > 0);
+    const entries = Array.from(this.elementCorrections.entries()).filter(
+      ([, corrections]) => corrections.length > 0
+    );
     entries.sort(([elementA], [elementB]) => {
       if (elementA === elementB) {
         return 0;
@@ -416,7 +424,6 @@ export class ProofreadingManager {
     const elements: IssueElementGroup[] = [];
 
     for (const [element, corrections] of entries) {
-
       const text = this.getElementText(element);
       const elementId = this.getElementId(element);
 
@@ -454,7 +461,10 @@ export class ProofreadingManager {
       elements,
     };
 
-    const message: IssuesUpdateMessage = { type: 'proofly:issues-update', payload };
+    const message: IssuesUpdateMessage = {
+      type: 'proofly:issues-update',
+      payload,
+    };
 
     void chrome.runtime.sendMessage(message).catch((error) => {
       logger.warn({ error }, 'Failed to broadcast issues update');
@@ -499,7 +509,10 @@ export class ProofreadingManager {
     this.scheduleIssuesUpdate();
   }
 
-  private resolveCorrectionForIssue(element: HTMLElement, issueId: string): ProofreadCorrection | null {
+  private resolveCorrectionForIssue(
+    element: HTMLElement,
+    issueId: string
+  ): ProofreadCorrection | null {
     const lookup = this.elementIssueLookup.get(element);
     if (lookup?.has(issueId)) {
       return lookup.get(issueId) ?? null;
@@ -544,7 +557,10 @@ export class ProofreadingManager {
     });
   }
 
-  private filterCorrections(corrections: ProofreadCorrection[], text: string): ProofreadCorrection[] {
+  private filterCorrections(
+    corrections: ProofreadCorrection[],
+    text: string
+  ): ProofreadCorrection[] {
     const trimmedLength = text.trimEnd().length;
     return corrections
       .filter((correction) => correction.startIndex < trimmedLength)
@@ -579,10 +595,7 @@ export class ProofreadingManager {
     }
 
     const elementText = this.getElementText(element);
-    const issueText = elementText.substring(
-      correction.startIndex,
-      correction.endIndex
-    );
+    const issueText = elementText.substring(correction.startIndex, correction.endIndex);
 
     this.popover.setCorrection(correction, issueText, (applied) => {
       this.handleCorrectionFromPopover(element, applied);
@@ -614,21 +627,15 @@ export class ProofreadingManager {
     );
 
     this.cleanupHandler(this.correctionColorsCleanup);
-    this.correctionColorsCleanup = onStorageChange(
-      STORAGE_KEYS.CORRECTION_COLORS,
-      (newValue) => {
-        const updatedConfig: CorrectionColorConfig = structuredClone(newValue);
-        this.updateCorrectionColors(updatedConfig);
-      }
-    );
+    this.correctionColorsCleanup = onStorageChange(STORAGE_KEYS.CORRECTION_COLORS, (newValue) => {
+      const updatedConfig: CorrectionColorConfig = structuredClone(newValue);
+      this.updateCorrectionColors(updatedConfig);
+    });
 
     this.cleanupHandler(this.underlineStyleCleanup);
-    this.underlineStyleCleanup = onStorageChange(
-      STORAGE_KEYS.UNDERLINE_STYLE,
-      (newValue) => {
-        this.updateUnderlineStyle(newValue);
-      }
-    );
+    this.underlineStyleCleanup = onStorageChange(STORAGE_KEYS.UNDERLINE_STYLE, (newValue) => {
+      this.updateUnderlineStyle(newValue);
+    });
   }
 
   private async initializeProofreadPreferences(): Promise<void> {
@@ -644,34 +651,25 @@ export class ProofreadingManager {
     this.setupShortcutListener();
 
     this.cleanupHandler(this.autoCorrectCleanup);
-    this.autoCorrectCleanup = onStorageChange(
-      STORAGE_KEYS.AUTO_CORRECT,
-      (newValue) => {
-        this.autoCorrectEnabled = newValue;
-        if (!newValue) {
-          this.controller.cancelPendingProofreads();
-        }
-        if (newValue && this.activeElement) {
-          void this.controller.proofread(this.activeElement, { force: true });
-        }
+    this.autoCorrectCleanup = onStorageChange(STORAGE_KEYS.AUTO_CORRECT, (newValue) => {
+      this.autoCorrectEnabled = newValue;
+      if (!newValue) {
+        this.controller.cancelPendingProofreads();
       }
-    );
+      if (newValue && this.activeElement) {
+        void this.controller.proofread(this.activeElement, { force: true });
+      }
+    });
 
     this.cleanupHandler(this.shortcutStorageCleanup);
-    this.shortcutStorageCleanup = onStorageChange(
-      STORAGE_KEYS.PROOFREAD_SHORTCUT,
-      (newValue) => {
-        this.proofreadShortcut = newValue;
-      }
-    );
+    this.shortcutStorageCleanup = onStorageChange(STORAGE_KEYS.PROOFREAD_SHORTCUT, (newValue) => {
+      this.proofreadShortcut = newValue;
+    });
 
     this.cleanupHandler(this.autofixCleanup);
-    this.autofixCleanup = onStorageChange(
-      STORAGE_KEYS.AUTOFIX_ON_DOUBLE_CLICK,
-      (newValue) => {
-        this.updateAutofixOnDoubleClick(newValue);
-      }
-    );
+    this.autofixCleanup = onStorageChange(STORAGE_KEYS.AUTOFIX_ON_DOUBLE_CLICK, (newValue) => {
+      this.updateAutofixOnDoubleClick(newValue);
+    });
   }
 
   private updateCorrectionColors(colorConfig: CorrectionColorConfig): void {
@@ -784,7 +782,9 @@ export class ProofreadingManager {
     return [...modifiers, normalizedKey].join('+');
   }
 
-  private async getOrCreateProofreaderService(language: string): Promise<ReturnType<typeof createProofreadingService>> {
+  private async getOrCreateProofreaderService(
+    language: string
+  ): Promise<ReturnType<typeof createProofreadingService>> {
     if (this.proofreaderServices.has(language)) {
       return this.proofreaderServices.get(language)!;
     }
@@ -817,7 +817,9 @@ export class ProofreadingManager {
     return element.isContentEditable || element.hasAttribute('contenteditable');
   }
 
-  private isTextareaOrInput(element: HTMLElement): element is HTMLTextAreaElement | HTMLInputElement {
+  private isTextareaOrInput(
+    element: HTMLElement
+  ): element is HTMLTextAreaElement | HTMLInputElement {
     const tagName = element.tagName.toLowerCase();
     return tagName === 'textarea' || tagName === 'input';
   }

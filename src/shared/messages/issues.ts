@@ -79,7 +79,11 @@ export function toSidepanelIssue(
 }
 
 export function normalizeIssueLabel(element: HTMLElement): string | null {
-  if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) {
+  if (
+    element instanceof HTMLInputElement ||
+    element instanceof HTMLTextAreaElement ||
+    element instanceof HTMLSelectElement
+  ) {
     const labels = element.labels;
     if (labels) {
       for (const label of labels) {

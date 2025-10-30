@@ -1,4 +1,4 @@
-import { logger } from "../services/logger.ts";
+import { logger } from '../services/logger.ts';
 import { ProofreadingManager } from './proofreading-manager.ts';
 import { isModelReady } from '../shared/utils/storage.ts';
 

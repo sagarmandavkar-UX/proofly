@@ -20,7 +20,10 @@ function countIssues(payload: IssuesUpdatePayload | null | undefined): number {
   return payload.elements.reduce((total, group) => total + group.issues.length, 0);
 }
 
-async function updateBadgeForIssues(tabId: number, payload: IssuesUpdatePayload | null): Promise<void> {
+async function updateBadgeForIssues(
+  tabId: number,
+  payload: IssuesUpdatePayload | null
+): Promise<void> {
   const totalIssues = countIssues(payload);
 
   if (totalIssues > 0) {
@@ -34,7 +37,10 @@ async function updateBadgeForIssues(tabId: number, payload: IssuesUpdatePayload 
   }
 }
 
-function handleIssuesUpdate(message: IssuesUpdateMessage, sender: chrome.runtime.MessageSender): void {
+function handleIssuesUpdate(
+  message: IssuesUpdateMessage,
+  sender: chrome.runtime.MessageSender
+): void {
   const tabId = sender.tab?.id;
   if (typeof tabId !== 'number') {
     return;

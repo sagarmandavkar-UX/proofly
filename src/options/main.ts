@@ -3,7 +3,12 @@ import '../shared/components/checkbox.ts';
 import '../shared/components/logo.ts';
 import type { ProoflyCheckbox } from '../shared/components/checkbox.ts';
 import { debounce } from '../shared/utils/debounce.ts';
-import { isModelReady, getStorageValues, onStorageChange, setStorageValue } from '../shared/utils/storage.ts';
+import {
+  isModelReady,
+  getStorageValues,
+  onStorageChange,
+  setStorageValue,
+} from '../shared/utils/storage.ts';
 import { STORAGE_KEYS, STORAGE_DEFAULTS } from '../shared/constants.ts';
 import { ContentHighlighter } from '../content/components/content-highlighter.ts';
 import {
@@ -26,7 +31,7 @@ import type {
 } from '../shared/utils/correction-types.ts';
 import { isMacOS } from '../shared/utils/platform.ts';
 import './style.css';
-import { logger } from "../services/logger.ts";
+import { logger } from '../services/logger.ts';
 
 const LIVE_TEST_SAMPLE_TEXT = `This are a radnom text with a few classic common, and typicla typso and grammar issus. the Proofreader API hopefuly finds them all, lets see. Getting in the bus yea.`;
 
@@ -62,7 +67,14 @@ async function initOptions() {
       location.reload();
     });
   } else {
-    const { autoCorrect, underlineStyle, enabledCorrectionTypes, correctionColors, proofreadShortcut, autofixOnDoubleClick } = await getStorageValues([
+    const {
+      autoCorrect,
+      underlineStyle,
+      enabledCorrectionTypes,
+      correctionColors,
+      proofreadShortcut,
+      autofixOnDoubleClick,
+    } = await getStorageValues([
       STORAGE_KEYS.AUTO_CORRECT,
       STORAGE_KEYS.UNDERLINE_STYLE,
       STORAGE_KEYS.ENABLED_CORRECTION_TYPES,
@@ -82,9 +94,11 @@ async function initOptions() {
 
     const DEFAULT_PROOFREAD_SHORTCUT = STORAGE_DEFAULTS[STORAGE_KEYS.PROOFREAD_SHORTCUT];
     const persistCorrectionColors = debounce((config: CorrectionColorConfig) => {
-      void setStorageValue(STORAGE_KEYS.CORRECTION_COLORS, structuredClone(config)).catch((error) => {
-        logger.error({ error }, 'Failed to persist correction colors');
-      });
+      void setStorageValue(STORAGE_KEYS.CORRECTION_COLORS, structuredClone(config)).catch(
+        (error) => {
+          logger.error({ error }, 'Failed to persist correction colors');
+        }
+      );
     }, 500);
 
     const isMac = isMacOS();
@@ -110,13 +124,16 @@ async function initOptions() {
 
     const formatShortcut = (value: string): string => {
       if (!value) return 'Not set';
-      return value.split('+').map((part) => {
-        if (displayMap[part]) return displayMap[part];
-        const special = specialKeys[part];
-        if (special) return special;
-        if (part.length === 1) return part.toUpperCase();
-        return part.charAt(0).toUpperCase() + part.slice(1);
-      }).join(' + ');
+      return value
+        .split('+')
+        .map((part) => {
+          if (displayMap[part]) return displayMap[part];
+          const special = specialKeys[part];
+          if (special) return special;
+          if (part.length === 1) return part.toUpperCase();
+          return part.charAt(0).toUpperCase() + part.slice(1);
+        })
+        .join(' + ');
     };
 
     const buildShortcutFromEvent = (event: KeyboardEvent): string | null => {
@@ -157,15 +174,26 @@ async function initOptions() {
       dotted: 'spelling',
     };
 
-    const underlineStyleOptions = (
-      [
-        { value: 'solid' as UnderlineStyle, label: 'Solid', sample: 'speling mystake' },
-        { value: 'wavy' as UnderlineStyle, label: 'Wavy', sample: 'speling mystake' },
-        { value: 'dotted' as UnderlineStyle, label: 'Dotted', sample: 'speling mystake' },
-      ]
-    ).map(({ value, label, sample }) => {
-      const checked = underlineStyle === value ? 'checked' : '';
-      return `
+    const underlineStyleOptions = [
+      {
+        value: 'solid' as UnderlineStyle,
+        label: 'Solid',
+        sample: 'speling mystake',
+      },
+      {
+        value: 'wavy' as UnderlineStyle,
+        label: 'Wavy',
+        sample: 'speling mystake',
+      },
+      {
+        value: 'dotted' as UnderlineStyle,
+        label: 'Dotted',
+        sample: 'speling mystake',
+      },
+    ]
+      .map(({ value, label, sample }) => {
+        const checked = underlineStyle === value ? 'checked' : '';
+        return `
             <label class="underline-style-option" data-style="${value}">
               <input type="radio" name="underlineStyle" value="${value}" ${checked} />
               <div class="underline-style-visual">
@@ -174,7 +202,8 @@ async function initOptions() {
               </div>
             </label>
           `;
-    }).join('');
+      })
+      .join('');
 
     const correctionTypeOptions = ALL_CORRECTION_TYPES.map((type: CorrectionTypeKey) => {
       const info = currentCorrectionThemes[type];
@@ -309,7 +338,9 @@ async function initOptions() {
       liveTestEditor.textContent = LIVE_TEST_SAMPLE_TEXT;
     }
 
-    const autoCorrectCheckbox = document.querySelector<ProoflyCheckbox>('prfly-checkbox#autoCorrect');
+    const autoCorrectCheckbox = document.querySelector<ProoflyCheckbox>(
+      'prfly-checkbox#autoCorrect'
+    );
     if (autoCorrectCheckbox) {
       autoCorrectCheckbox.checked = autoCorrectEnabled;
       autoCorrectCheckbox.addEventListener('change', async () => {
@@ -321,7 +352,9 @@ async function initOptions() {
       });
     }
 
-    const autofixCheckbox = document.querySelector<ProoflyCheckbox>('prfly-checkbox#autofixOnDoubleClick');
+    const autofixCheckbox = document.querySelector<ProoflyCheckbox>(
+      'prfly-checkbox#autofixOnDoubleClick'
+    );
     if (autofixCheckbox) {
       autofixCheckbox.checked = autofixEnabled;
       autofixCheckbox.addEventListener('change', async () => {
@@ -331,7 +364,8 @@ async function initOptions() {
     }
 
     const shortcutButton = document.querySelector<HTMLButtonElement>('#proofreadShortcutButton');
-    const shortcutResetButton = document.querySelector<HTMLButtonElement>('#proofreadShortcutReset');
+    const shortcutResetButton =
+      document.querySelector<HTMLButtonElement>('#proofreadShortcutReset');
     const shortcutHint = document.querySelector<HTMLParagraphElement>('#proofreadShortcutHint');
 
     const updateShortcutDisplay = () => {
@@ -365,7 +399,8 @@ async function initOptions() {
       }
 
       if (shortcutHint) {
-        shortcutHint.textContent = 'Click the shortcut to record a new key combination. Press Esc to cancel.';
+        shortcutHint.textContent =
+          'Click the shortcut to record a new key combination. Press Esc to cancel.';
       }
     };
 
@@ -423,9 +458,11 @@ async function initOptions() {
       finishShortcutCapture(false);
       currentProofreadShortcut = DEFAULT_PROOFREAD_SHORTCUT;
       updateShortcutDisplay();
-      void setStorageValue(STORAGE_KEYS.PROOFREAD_SHORTCUT, DEFAULT_PROOFREAD_SHORTCUT).catch((error) => {
-        logger.error({ error },'Failed to reset proofread shortcut');
-      });
+      void setStorageValue(STORAGE_KEYS.PROOFREAD_SHORTCUT, DEFAULT_PROOFREAD_SHORTCUT).catch(
+        (error) => {
+          logger.error({ error }, 'Failed to reset proofread shortcut');
+        }
+      );
     });
 
     const handlePageShortcut = (event: KeyboardEvent) => {
@@ -448,7 +485,9 @@ async function initOptions() {
 
     const updateUnderlinePreviewStyles = () => {
       (['solid', 'wavy', 'dotted'] as UnderlineStyle[]).forEach((style) => {
-        const preview = document.querySelector<HTMLElement>(`.underline-style-sample[data-style-preview="${style}"]`);
+        const preview = document.querySelector<HTMLElement>(
+          `.underline-style-sample[data-style-preview="${style}"]`
+        );
         if (!preview) return;
         const theme = currentCorrectionThemes[UNDERLINE_STYLE_TYPE[style]];
         preview.style.setProperty('text-decoration-color', theme.color);
@@ -457,7 +496,9 @@ async function initOptions() {
 
     updateUnderlinePreviewStyles();
 
-    const underlineRadios = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="underlineStyle"]'));
+    const underlineRadios = Array.from(
+      document.querySelectorAll<HTMLInputElement>('input[name="underlineStyle"]')
+    );
     underlineRadios.forEach((radio) => {
       radio.addEventListener('change', async () => {
         if (radio.checked) {
@@ -493,16 +534,15 @@ async function initOptions() {
       });
     });
 
-    onStorageChange(
-      STORAGE_KEYS.ENABLED_CORRECTION_TYPES,
-      (newValue) => {
-        currentEnabledCorrectionTypes = [...newValue];
-        correctionTypeCheckboxes.forEach((checkbox) => {
-          checkbox.checked = currentEnabledCorrectionTypes.includes(checkbox.value as CorrectionTypeKey);
-        });
-        liveTestControls?.updateEnabledTypes(currentEnabledCorrectionTypes);
-      }
-    );
+    onStorageChange(STORAGE_KEYS.ENABLED_CORRECTION_TYPES, (newValue) => {
+      currentEnabledCorrectionTypes = [...newValue];
+      correctionTypeCheckboxes.forEach((checkbox) => {
+        checkbox.checked = currentEnabledCorrectionTypes.includes(
+          checkbox.value as CorrectionTypeKey
+        );
+      });
+      liveTestControls?.updateEnabledTypes(currentEnabledCorrectionTypes);
+    });
 
     onStorageChange(STORAGE_KEYS.AUTO_CORRECT, (newValue) => {
       autoCorrectEnabled = newValue;
@@ -523,7 +563,9 @@ async function initOptions() {
 
     const updateOptionStyles = (type: CorrectionTypeKey) => {
       const theme = currentCorrectionThemes[type];
-      const option = document.querySelector<ProoflyCheckbox>(`prfly-checkbox.option-card[data-type="${type}"]`);
+      const option = document.querySelector<ProoflyCheckbox>(
+        `prfly-checkbox.option-card[data-type="${type}"]`
+      );
       if (!option) return;
       const chip = option.querySelector<HTMLElement>('.correction-type-chip');
       if (chip) {
@@ -533,7 +575,9 @@ async function initOptions() {
       }
     };
 
-    const colorInputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[type="color"][data-type]'));
+    const colorInputs = Array.from(
+      document.querySelectorAll<HTMLInputElement>('input[type="color"][data-type]')
+    );
     colorInputs.forEach((input) => {
       input.addEventListener('input', async (event) => {
         const target = event.target as HTMLInputElement;
@@ -561,7 +605,9 @@ async function initOptions() {
       });
     });
 
-    const resetButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('button.reset-button[data-type]'));
+    const resetButtons = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('button.reset-button[data-type]')
+    );
     resetButtons.forEach((button) => {
       button.addEventListener('click', async () => {
         const type = button.dataset.type as CorrectionTypeKey | undefined;
@@ -573,7 +619,9 @@ async function initOptions() {
           [type]: { color: defaultColor },
         };
 
-        const inputEl = document.querySelector<HTMLInputElement>(`input[type="color"][data-type="${type}"]`);
+        const inputEl = document.querySelector<HTMLInputElement>(
+          `input[type="color"][data-type="${type}"]`
+        );
         if (inputEl) {
           inputEl.value = defaultColor;
         }
@@ -596,7 +644,9 @@ async function initOptions() {
 
       for (const type of ALL_CORRECTION_TYPES) {
         updateOptionStyles(type);
-        const inputEl = document.querySelector<HTMLInputElement>(`input[type="color"][data-type="${type}"]`);
+        const inputEl = document.querySelector<HTMLInputElement>(
+          `input[type="color"][data-type="${type}"]`
+        );
         if (inputEl) {
           inputEl.value = correctionColorConfig[type].color;
         }
@@ -732,19 +782,13 @@ async function setupLiveTestArea(
     highlighter.setCorrectionColors(colorThemes);
   };
 
-  onStorageChange(
-    STORAGE_KEYS.ENABLED_CORRECTION_TYPES,
-    (newValue) => {
-      updateEnabledTypes(newValue);
-    }
-  );
+  onStorageChange(STORAGE_KEYS.ENABLED_CORRECTION_TYPES, (newValue) => {
+    updateEnabledTypes(newValue);
+  });
 
-  onStorageChange(
-    STORAGE_KEYS.CORRECTION_COLORS,
-    (newValue) => {
-      updateColors(newValue);
-    }
-  );
+  onStorageChange(STORAGE_KEYS.CORRECTION_COLORS, (newValue) => {
+    updateColors(newValue);
+  });
 
   await refreshProofreading();
 

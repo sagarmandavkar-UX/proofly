@@ -74,7 +74,9 @@ export function getDefaultCorrectionColorConfig(): CorrectionColorConfig {
   return config;
 }
 
-export function buildCorrectionColorThemes(config?: CorrectionColorConfig | null): CorrectionColorThemeMap {
+export function buildCorrectionColorThemes(
+  config?: CorrectionColorConfig | null
+): CorrectionColorThemeMap {
   const merged = {} as CorrectionColorThemeMap;
   for (const type of ALL_CORRECTION_TYPES) {
     const base = CORRECTION_TYPES[type];
@@ -93,7 +95,9 @@ export function getActiveCorrectionColors(): CorrectionColorThemeMap {
   return structuredClone(activeCorrectionColors);
 }
 
-export function getCorrectionTypeColor(type?: CorrectionType | CorrectionTypeKey): CorrectionColorTheme {
+export function getCorrectionTypeColor(
+  type?: CorrectionType | CorrectionTypeKey
+): CorrectionColorTheme {
   if (!type) return activeCorrectionColors.spelling;
   const key = type as CorrectionTypeKey;
   return activeCorrectionColors[key] || activeCorrectionColors.spelling;

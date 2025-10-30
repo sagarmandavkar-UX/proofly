@@ -1,4 +1,4 @@
-import { logger } from "./logger.ts";
+import { logger } from './logger.ts';
 
 export type DownloadState =
   | 'idle'
@@ -41,7 +41,7 @@ export interface ModelDownloaderEvents extends Record<string, unknown> {
   'download-start': void;
   'download-progress': DownloadProgress;
   'download-complete': void;
-  'error': Error;
+  error: Error;
 }
 
 class EventEmitter<T extends Record<string, unknown>> {
@@ -73,9 +73,7 @@ class EventEmitter<T extends Record<string, unknown>> {
   }
 }
 
-export function createModelDownloader(
-  config: ModelDownloaderConfig = DEFAULT_DOWNLOADER_CONFIG
-) {
+export function createModelDownloader(config: ModelDownloaderConfig = DEFAULT_DOWNLOADER_CONFIG) {
   const emitter = new EventEmitter<ModelDownloaderEvents>();
   let currentState: DownloadState = 'idle';
   let currentProgress = 0;
@@ -83,7 +81,12 @@ export function createModelDownloader(
   let languageDetectorInstance: LanguageDetector | null = null;
   let isDownloading = false;
 
-  function updateState(state: DownloadState, progress = currentProgress, modelType?: ModelType, error?: Error) {
+  function updateState(
+    state: DownloadState,
+    progress = currentProgress,
+    modelType?: ModelType,
+    error?: Error
+  ) {
     currentState = state;
     currentProgress = progress;
 
@@ -187,7 +190,7 @@ export function createModelDownloader(
       updateState('ready', 1, 'language-detector');
       return detector;
     } catch (error) {
-      logger.warn({error}, 'Failed to download language detector, continuing without it');
+      logger.warn({ error }, 'Failed to download language detector, continuing without it');
       return null;
     }
   }
@@ -281,9 +284,7 @@ export function createModelDownloader(
         }
 
         if (config.autoRetry) {
-          logger.warn({ err },
-            `Download failed, retrying (${retries}/${config.maxRetries})...`,
-          );
+          logger.warn({ err }, `Download failed, retrying (${retries}/${config.maxRetries})...`);
           await new Promise((resolve) => setTimeout(resolve, config.retryDelayMs));
         } else {
           updateState('error', currentProgress, 'proofreader', err);
@@ -322,9 +323,7 @@ export function createModelDownloader(
       state: currentState,
       progress: currentProgress,
       bytesDownloaded:
-        currentState === 'downloading'
-          ? Math.floor(currentProgress * MODEL_SIZE_BYTES)
-          : undefined,
+        currentState === 'downloading' ? Math.floor(currentProgress * MODEL_SIZE_BYTES) : undefined,
       totalBytes: currentState === 'downloading' ? MODEL_SIZE_BYTES : undefined,
     };
   }

@@ -1,5 +1,5 @@
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color: #111827;
@@ -97,7 +97,9 @@ main {
   position: sticky;
   bottom: 0;
   z-index: 10;
-  box-shadow: 0 0 10px 6px rgb(67 67 67 / 30%), 0 0 20px 0 rgb(206 206 206);
+  box-shadow:
+    0 0 10px 6px rgb(67 67 67 / 30%),
+    0 0 20px 0 rgb(206 206 206);
   margin-bottom: 0;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
@@ -234,7 +236,9 @@ prfly-checkbox.option-card::part(container) {
   border-radius: 0.5rem;
   background: var(--option-color-card-bg);
   cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
   width: 100%;
 }
 
@@ -261,7 +265,9 @@ prfly-checkbox.option-card--single::part(control) {
   border: 1px solid var(--option-color-card-border);
   border-radius: 0.5rem;
   background: var(--option-color-card-bg);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
   border-color: var(--option-color-button-border);
   box-shadow: 0 0 0 3px var(--option-color-card-ring);
   cursor: default;
@@ -301,7 +307,10 @@ prfly-checkbox.option-card--single::part(control) {
   align-items: center;
   justify-content: center;
   min-width: max-content;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .shortcut-button:hover,
@@ -389,7 +398,7 @@ prfly-checkbox.option-card--single::part(control) {
   cursor: pointer;
 }
 
-.correction-type-colors input[type="color"] {
+.correction-type-colors input[type='color'] {
   width: 2.4rem;
   height: 2.4rem;
   border: none;
@@ -429,22 +438,27 @@ prfly-checkbox.option-card--single::part(control) {
   border-radius: 0.5rem;
   background: var(--option-color-card-bg);
   cursor: pointer;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
-.underline-style-option input[type="radio"] {
+.underline-style-option input[type='radio'] {
   margin: 0;
   accent-color: var(--option-color-button-bg);
 }
 
 .underline-style-option:focus-within,
 .underline-style-option:hover,
-.underline-style-option:has(input[type="radio"]:checked) {
+.underline-style-option:has(input[type='radio']:checked) {
   border-color: var(--option-color-button-border);
   box-shadow: 0 0 0 3px var(--option-color-card-ring);
 }
 
-.underline-style-option input[type="radio"]:checked + .underline-style-visual .underline-style-label {
+.underline-style-option
+  input[type='radio']:checked
+  + .underline-style-visual
+  .underline-style-label {
   color: var(--option-color-button-border);
 }
 
@@ -469,7 +483,10 @@ prfly-checkbox.option-card--single::part(control) {
   background-color: rgba(31, 41, 55, 0.08);
   text-decoration-color: currentColor;
   box-shadow: inset 0 -2px 0 rgba(31, 41, 55, 0.18);
-  transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
+  transition:
+    background-color 0.2s,
+    color 0.2s,
+    box-shadow 0.2s;
   text-decoration-skip-ink: none;
   text-underline-offset: 2px;
 }

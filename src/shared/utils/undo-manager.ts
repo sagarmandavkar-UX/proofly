@@ -356,7 +356,6 @@ export class UndoManager {
       history.undoStack.push(initialState);
     }
   }
-
 }
 
 // Create a singleton instance

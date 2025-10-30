@@ -9,15 +9,13 @@ export class ProoflyCheckbox extends HTMLElement {
 
   private handleSlotChange = () => {
     if (!this.slotEl) return;
-    const assigned = this.slotEl
-      .assignedNodes({ flatten: true })
-      .filter((node) => {
-        if (node.nodeType === Node.ELEMENT_NODE) return true;
-        if (node.nodeType === Node.TEXT_NODE) {
-          return node.textContent?.trim().length;
-        }
-        return false;
-      });
+    const assigned = this.slotEl.assignedNodes({ flatten: true }).filter((node) => {
+      if (node.nodeType === Node.ELEMENT_NODE) return true;
+      if (node.nodeType === Node.TEXT_NODE) {
+        return node.textContent?.trim().length;
+      }
+      return false;
+    });
 
     this.toggleAttribute('data-empty', assigned.length === 0);
   };
@@ -416,7 +414,9 @@ export class ProoflyCheckbox extends HTMLElement {
   private shouldIgnoreEvent(event: Event): boolean {
     return event
       .composedPath()
-      .some((node) => node instanceof HTMLElement && node.hasAttribute('data-checkbox-interactive'));
+      .some(
+        (node) => node instanceof HTMLElement && node.hasAttribute('data-checkbox-interactive')
+      );
   }
 }
 

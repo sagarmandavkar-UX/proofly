@@ -1,4 +1,4 @@
-import { logger } from "../services/logger.ts";
+import { logger } from '../services/logger.ts';
 
 export interface IProofreader {
   proofread(text: string): Promise<ProofreadResult>;
@@ -137,10 +137,7 @@ export function createProofreadingService(
      */
     canProofread(text: string): boolean {
       const trimmed = text.trim();
-      return (
-        trimmed.length >= config.minTextLength &&
-        trimmed.length <= config.maxTextLength
-      );
+      return trimmed.length >= config.minTextLength && trimmed.length <= config.maxTextLength;
     },
 
     /**

@@ -15,7 +15,7 @@ export class CorrectionPopover extends HTMLElement {
     this.attachShadow({ mode: 'open' });
   }
 
-   connectedCallback() {
+  connectedCallback() {
     this.setAttribute('popover', 'manual');
     this.render();
   }
@@ -158,11 +158,15 @@ export class CorrectionPopover extends HTMLElement {
         <div class="correction-suggestion">
           <strong>Suggestion:</strong> ${suggestionDisplay}
         </div>
-        ${this.currentCorrection.explanation ? `
+        ${
+          this.currentCorrection.explanation
+            ? `
           <div class="correction-explanation">
             ${this.escapeHtml(this.currentCorrection.explanation)}
           </div>
-        ` : ''}
+        `
+            : ''
+        }
       </div>
       <div class="correction-actions">
         <button class="apply-button">Apply Fix</button>

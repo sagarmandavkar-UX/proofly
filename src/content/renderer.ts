@@ -38,9 +38,8 @@ export class UnderlineRenderer {
   render(descriptors: UnderlineDescriptor[], options: RenderOptions): void {
     const footprint = new Set<string>();
     const baseUnderlineHeight = Math.max(2, Math.round(options.lineHeight * 0.08));
-    const underlineHeight = options.underlineStyle === 'wavy'
-      ? Math.max(baseUnderlineHeight, 4)
-      : baseUnderlineHeight;
+    const underlineHeight =
+      options.underlineStyle === 'wavy' ? Math.max(baseUnderlineHeight, 4) : baseUnderlineHeight;
     const radius = 4;
 
     const visibleWidth = Math.max(

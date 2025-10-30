@@ -29,13 +29,23 @@ export class ContentHighlighter {
   private popover: CorrectionPopover | null = null;
   private clickHandlers = new Map<HTMLElement, (e: MouseEvent) => void>();
   private dblClickHandlers = new Map<HTMLElement, (e: MouseEvent) => void>();
-  private onCorrectionAppliedCallbacks = new Map<HTMLElement, (updatedCorrections: ProofreadCorrection[]) => void>();
-  private applyCorrectionCallbacks = new Map<HTMLElement, (element: HTMLElement, correction: ProofreadCorrection) => void>();
+  private onCorrectionAppliedCallbacks = new Map<
+    HTMLElement,
+    (updatedCorrections: ProofreadCorrection[]) => void
+  >();
+  private applyCorrectionCallbacks = new Map<
+    HTMLElement,
+    (element: HTMLElement, correction: ProofreadCorrection) => void
+  >();
   private underlineStyleCleanup: (() => void) | null = null;
   private autofixCleanup: (() => void) | null = null;
   private selectedHighlight: Highlight | null = null;
   private selectedElement: HTMLElement | null = null;
-  private selectedCorrectionRange: { start: number; end: number; type?: string } | null = null;
+  private selectedCorrectionRange: {
+    start: number;
+    end: number;
+    type?: string;
+  } | null = null;
   private popoverHideCleanup: (() => void) | null = null;
   private correctionColors: CorrectionColorThemeMap = getActiveCorrectionColors();
   private currentUnderlineStyle: UnderlineStyle = 'solid';
@@ -48,11 +58,17 @@ export class ContentHighlighter {
     void this.initializeAutofixSetting();
   }
 
-  setOnCorrectionApplied(element: HTMLElement, callback: (updatedCorrections: ProofreadCorrection[]) => void): void {
+  setOnCorrectionApplied(
+    element: HTMLElement,
+    callback: (updatedCorrections: ProofreadCorrection[]) => void
+  ): void {
     this.onCorrectionAppliedCallbacks.set(element, callback);
   }
 
-  setApplyCorrectionCallback(element: HTMLElement, callback: (element: HTMLElement, correction: ProofreadCorrection) => void): void {
+  setApplyCorrectionCallback(
+    element: HTMLElement,
+    callback: (element: HTMLElement, correction: ProofreadCorrection) => void
+  ): void {
     this.applyCorrectionCallbacks.set(element, callback);
   }
 
@@ -88,13 +104,10 @@ export class ContentHighlighter {
     this.currentUnderlineStyle = await loadUnderlineStyle();
     this.applyHighlightStyles();
 
-    this.underlineStyleCleanup = onStorageChange(
-      STORAGE_KEYS.UNDERLINE_STYLE,
-      (newValue) => {
-        this.currentUnderlineStyle = newValue;
-        this.applyHighlightStyles();
-      }
-    );
+    this.underlineStyleCleanup = onStorageChange(STORAGE_KEYS.UNDERLINE_STYLE, (newValue) => {
+      this.currentUnderlineStyle = newValue;
+      this.applyHighlightStyles();
+    });
   }
 
   private async initializeAutofixSetting(): Promise<void> {
@@ -105,12 +118,9 @@ export class ContentHighlighter {
       this.autofixOnDoubleClick = false;
     }
 
-    this.autofixCleanup = onStorageChange(
-      STORAGE_KEYS.AUTOFIX_ON_DOUBLE_CLICK,
-      (newValue) => {
-        this.autofixOnDoubleClick = newValue;
-      }
-    );
+    this.autofixCleanup = onStorageChange(STORAGE_KEYS.AUTOFIX_ON_DOUBLE_CLICK, (newValue) => {
+      this.autofixOnDoubleClick = newValue;
+    });
   }
 
   private applyHighlightStyles(): void {
@@ -124,10 +134,14 @@ export class ContentHighlighter {
   private initializePopover(): void {
     // Create popover in document body, not shadow DOM
     if (!document.querySelector('proofly-correction-popover')) {
-      this.popover = document.createElement('proofly-correction-popover') as unknown as CorrectionPopover;
+      this.popover = document.createElement(
+        'proofly-correction-popover'
+      ) as unknown as CorrectionPopover;
       document.body.appendChild(this.popover);
     } else {
-      this.popover = document.querySelector('proofly-correction-popover') as unknown as CorrectionPopover;
+      this.popover = document.querySelector(
+        'proofly-correction-popover'
+      ) as unknown as CorrectionPopover;
     }
 
     if (this.popoverHideCleanup) {
@@ -192,12 +206,20 @@ export class ContentHighlighter {
     }
 
     // Find which correction was clicked using CSS.highlights API
-    const clickedCorrection = this.findCorrectionAtPoint(element, event.clientX, event.clientY, corrections);
+    const clickedCorrection = this.findCorrectionAtPoint(
+      element,
+      event.clientX,
+      event.clientY,
+      corrections
+    );
 
-    logger.info({
-      clientX: event.clientX,
-      clientY: event.clientY
-    },'Click detected at coordinates:');
+    logger.info(
+      {
+        clientX: event.clientX,
+        clientY: event.clientY,
+      },
+      'Click detected at coordinates:'
+    );
 
     logger.info(corrections, 'Available corrections');
     logger.info(clickedCorrection, 'Found correction');
@@ -206,7 +228,7 @@ export class ContentHighlighter {
       try {
         this.popover.hidePopover();
       } catch (e) {
-        logger.warn({ error:  e },'Failed to hide popover');
+        logger.warn({ error: e }, 'Failed to hide popover');
       }
       this.clearSelectedCorrection();
       return;
@@ -245,12 +267,20 @@ export class ContentHighlighter {
     }
 
     // Find which correction was double-clicked using CSS.highlights API
-    const clickedCorrection = this.findCorrectionAtPoint(element, event.clientX, event.clientY, corrections);
+    const clickedCorrection = this.findCorrectionAtPoint(
+      element,
+      event.clientX,
+      event.clientY,
+      corrections
+    );
 
-    logger.info({
-      clientX: event.clientX,
-      clientY: event.clientY
-    },'Double-click detected at coordinates:');
+    logger.info(
+      {
+        clientX: event.clientX,
+        clientY: event.clientY,
+      },
+      'Double-click detected at coordinates:'
+    );
 
     logger.info(clickedCorrection, 'Found correction for autofix');
 
@@ -262,7 +292,12 @@ export class ContentHighlighter {
     this.applyCorrection(element, clickedCorrection);
   }
 
-  private findCorrectionAtPoint(element: HTMLElement, x: number, y: number, corrections: ProofreadCorrection[]): ProofreadCorrection | null {
+  private findCorrectionAtPoint(
+    element: HTMLElement,
+    x: number,
+    y: number,
+    corrections: ProofreadCorrection[]
+  ): ProofreadCorrection | null {
     // First try: use caretRangeFromPoint/caretPositionFromPoint with the element context
     const caretBasedCorrection = this.findCorrectionUsingCaret(element, x, y, corrections);
     if (caretBasedCorrection) {
@@ -275,12 +310,12 @@ export class ContentHighlighter {
 
       // Find which error type was clicked
       for (const highlight of highlightsAtPoint) {
-        const errorType = ERROR_TYPES.find(type => this.highlights.get(type) === highlight);
+        const errorType = ERROR_TYPES.find((type) => this.highlights.get(type) === highlight);
         if (errorType) {
           // Return the first correction of this type near the click point
           // Since we can't get the exact range from highlightsFromPoint,
           // we'll need to check all corrections of this type
-          return corrections.find(c => c.type === errorType) || null;
+          return corrections.find((c) => c.type === errorType) || null;
         }
       }
     }
@@ -288,7 +323,12 @@ export class ContentHighlighter {
     return null;
   }
 
-  private findCorrectionUsingCaret(element: HTMLElement, x: number, y: number, corrections: ProofreadCorrection[]): ProofreadCorrection | null {
+  private findCorrectionUsingCaret(
+    element: HTMLElement,
+    x: number,
+    y: number,
+    corrections: ProofreadCorrection[]
+  ): ProofreadCorrection | null {
     // Get the text node within the element
     const textNode = this.getFirstTextNode(element);
     if (!textNode || !textNode.textContent) {
@@ -326,7 +366,9 @@ export class ContentHighlighter {
     }
 
     logger.info(`Closest character offset ${closestOffset} at distance ${minDistance}`);
-    logger.info(`Looking for correction at offset ${closestOffset} in ${corrections.length} corrections`);
+    logger.info(
+      `Looking for correction at offset ${closestOffset} in ${corrections.length} corrections`
+    );
 
     // Find correction that contains this offset
     const found = corrections.find(
@@ -334,10 +376,15 @@ export class ContentHighlighter {
     );
 
     if (found) {
-      logger.info({found}, 'Found correction');
+      logger.info({ found }, 'Found correction');
     } else {
-      logger.info({closestOffset},'No correction found at offset');
-      logger.info({ correctionRanges: corrections.map(c => `[${c.startIndex}-${c.endIndex}]`).join(', ')},'Available correction ranges');
+      logger.info({ closestOffset }, 'No correction found at offset');
+      logger.info(
+        {
+          correctionRanges: corrections.map((c) => `[${c.startIndex}-${c.endIndex}]`).join(', '),
+        },
+        'Available correction ranges'
+      );
     }
 
     return found || null;
@@ -405,7 +452,10 @@ export class ContentHighlighter {
     setSelectedHighlightColors(this.selectedCorrectionRange.type, this.correctionColors);
   }
 
-  private getCorrectionBoundingRect(element: HTMLElement, correction: ProofreadCorrection): DOMRect | null {
+  private getCorrectionBoundingRect(
+    element: HTMLElement,
+    correction: ProofreadCorrection
+  ): DOMRect | null {
     const textNode = this.getFirstTextNode(element);
     if (!textNode) {
       return null;
@@ -445,13 +495,13 @@ export class ContentHighlighter {
     const corrections = this.highlightedElements.get(element);
     if (corrections) {
       const updatedCorrections = corrections
-        .filter(c => c !== correction)
-        .map(c => {
+        .filter((c) => c !== correction)
+        .map((c) => {
           if (c.startIndex > correction.startIndex) {
             return {
               ...c,
               startIndex: c.startIndex + lengthDiff,
-              endIndex: c.endIndex + lengthDiff
+              endIndex: c.endIndex + lengthDiff,
             };
           }
           return c;
@@ -498,10 +548,7 @@ export class ContentHighlighter {
       return true;
     }
 
-    return (
-      element.isContentEditable ||
-      element.hasAttribute('contenteditable')
-    );
+    return element.isContentEditable || element.hasAttribute('contenteditable');
   }
 
   private getElementText(element: HTMLElement): string {
@@ -514,10 +561,7 @@ export class ContentHighlighter {
     return element.textContent || '';
   }
 
-  private applyHighlights(
-    element: HTMLElement,
-    corrections: ProofreadCorrection[]
-  ): void {
+  private applyHighlights(element: HTMLElement, corrections: ProofreadCorrection[]): void {
     const tagName = element.tagName.toLowerCase();
 
     if (tagName === 'textarea' || tagName === 'input') {
@@ -575,11 +619,7 @@ export class ContentHighlighter {
       return element.firstChild as Text;
     }
 
-    const walker = document.createTreeWalker(
-      element,
-      NodeFilter.SHOW_TEXT,
-      null
-    );
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null);
     return walker.nextNode() as Text | null;
   }
 
@@ -601,7 +641,6 @@ export class ContentHighlighter {
     }
   }
 
-
   private removeHighlights(element: HTMLElement): void {
     this.clearHighlightsForElement(element);
     this.observers.get(element)?.disconnect();
@@ -622,7 +661,7 @@ export class ContentHighlighter {
 
   destroy(): void {
     this.clearAllHighlights();
-    this.observers.forEach(observer => observer.disconnect());
+    this.observers.forEach((observer) => observer.disconnect());
     this.observers.clear();
 
     this.clickHandlers.forEach((handler, element) => {
@@ -735,8 +774,13 @@ if ('highlights' in CSS) {
   updateHighlightStyle('solid', getActiveCorrectionColors());
 }
 
-function setSelectedHighlightColors(type: string | undefined, colors: CorrectionColorThemeMap): void {
-  const theme = type ? colors[type as keyof CorrectionColorThemeMap] || colors.spelling : colors.spelling;
+function setSelectedHighlightColors(
+  type: string | undefined,
+  colors: CorrectionColorThemeMap
+): void {
+  const theme = type
+    ? colors[type as keyof CorrectionColorThemeMap] || colors.spelling
+    : colors.spelling;
   document.documentElement.style.setProperty('--prfly-selected-highlight-bg', theme.background);
   document.documentElement.style.setProperty('--prfly-selected-highlight-color', theme.color);
 }
@@ -753,7 +797,7 @@ function createCorrectionRange(textNode: Text, start: number, end: number): Rang
     range.setEnd(textNode, end);
     return range;
   } catch (error) {
-    logger.warn(error,'Failed to create selected correction range:');
+    logger.warn(error, 'Failed to create selected correction range:');
     return null;
   }
 }

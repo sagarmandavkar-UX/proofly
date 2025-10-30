@@ -7,7 +7,9 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build"
+    "build": "tsc && vite build",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md,html}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md,html}\""
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.0.3",
@@ -15,6 +17,7 @@
     "@types/dom-chromium-ai": "^0.0.10",
     "@types/node": "^24.0.15",
     "pino": "^10.1.0",
+    "prettier": "^3.6.2",
     "typescript": "~5.8.3",
     "user-agent-data-types": "^0.4.2",
     "vite": "^7.0.5",

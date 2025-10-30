@@ -38,7 +38,7 @@ const SYNC_KEYS = [
  * Determine which storage area to use for a given key
  */
 function getStorageArea(key: string): chrome.storage.StorageArea {
-  return SYNC_KEYS.includes(key as typeof SYNC_KEYS[number])
+  return SYNC_KEYS.includes(key as (typeof SYNC_KEYS)[number])
     ? chrome.storage.sync
     : chrome.storage.local;
 }
@@ -68,22 +68,22 @@ export async function getStorageValues<K extends keyof StorageData>(
   const data = {} as Pick<StorageData, K>;
 
   // Group keys by storage area
-  const syncKeys = keys.filter(k => SYNC_KEYS.includes(k as typeof SYNC_KEYS[number]));
-  const localKeys = keys.filter(k => !SYNC_KEYS.includes(k as typeof SYNC_KEYS[number]));
+  const syncKeys = keys.filter((k) => SYNC_KEYS.includes(k as (typeof SYNC_KEYS)[number]));
+  const localKeys = keys.filter((k) => !SYNC_KEYS.includes(k as (typeof SYNC_KEYS)[number]));
 
   // Fetch from both storage areas in parallel
   const [syncResult, localResult] = await Promise.all([
     syncKeys.length > 0
-      ? chrome.storage.sync.get(syncKeys).then(result => result as Partial<StorageData>)
+      ? chrome.storage.sync.get(syncKeys).then((result) => result as Partial<StorageData>)
       : Promise.resolve<Partial<StorageData>>({}),
     localKeys.length > 0
-      ? chrome.storage.local.get(localKeys).then(result => result as Partial<StorageData>)
+      ? chrome.storage.local.get(localKeys).then((result) => result as Partial<StorageData>)
       : Promise.resolve<Partial<StorageData>>({}),
   ]);
 
   // Merge results with defaults
   for (const key of keys) {
-    const result = SYNC_KEYS.includes(key as typeof SYNC_KEYS[number]) ? syncResult : localResult;
+    const result = SYNC_KEYS.includes(key as (typeof SYNC_KEYS)[number]) ? syncResult : localResult;
     const value = result[key];
     if (value !== undefined) {
       data[key] = cloneValue(value) as StorageData[typeof key];
@@ -111,15 +111,13 @@ export async function setStorageValue<K extends keyof StorageData>(
 /**
  * Set multiple values in Chrome storage
  */
-export async function setStorageValues(
-  data: Partial<StorageData>
-): Promise<void> {
+export async function setStorageValues(data: Partial<StorageData>): Promise<void> {
   const syncData: Partial<StorageData> = {};
   const localData: Partial<StorageData> = {};
 
   // Split data by storage area
   for (const [key, value] of Object.entries(data)) {
-    if (SYNC_KEYS.includes(key as typeof SYNC_KEYS[number])) {
+    if (SYNC_KEYS.includes(key as (typeof SYNC_KEYS)[number])) {
       syncData[key as keyof StorageData] = value as never;
     } else {
       localData[key as keyof StorageData] = value as never;
@@ -152,12 +150,9 @@ export function onStorageChange<K extends keyof StorageData>(
   key: K,
   callback: (newValue: StorageData[K], oldValue: StorageData[K]) => void
 ): () => void {
-  const expectedArea = SYNC_KEYS.includes(key as typeof SYNC_KEYS[number]) ? 'sync' : 'local';
+  const expectedArea = SYNC_KEYS.includes(key as (typeof SYNC_KEYS)[number]) ? 'sync' : 'local';
 
-  const listener = (
-    changes: { [key: string]: chrome.storage.StorageChange },
-    areaName: string
-  ) => {
+  const listener = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
     if (areaName === expectedArea && changes[key]) {
       callback(changes[key].newValue, changes[key].oldValue);
     }
@@ -175,8 +170,8 @@ export function onStorageChange<K extends keyof StorageData>(
  */
 export async function initializeStorage(): Promise<void> {
   const allKeys = Object.keys(STORAGE_DEFAULTS);
-  const syncKeys = allKeys.filter(k => SYNC_KEYS.includes(k as typeof SYNC_KEYS[number]));
-  const localKeys = allKeys.filter(k => !SYNC_KEYS.includes(k as typeof SYNC_KEYS[number]));
+  const syncKeys = allKeys.filter((k) => SYNC_KEYS.includes(k as (typeof SYNC_KEYS)[number]));
+  const localKeys = allKeys.filter((k) => !SYNC_KEYS.includes(k as (typeof SYNC_KEYS)[number]));
 
   // Fetch current values from both storage areas
   const [syncValues, localValues] = await Promise.all([
@@ -189,7 +184,7 @@ export async function initializeStorage(): Promise<void> {
 
   // Check which defaults need to be set
   for (const [key, defaultValue] of Object.entries(STORAGE_DEFAULTS)) {
-    if (SYNC_KEYS.includes(key as typeof SYNC_KEYS[number])) {
+    if (SYNC_KEYS.includes(key as (typeof SYNC_KEYS)[number])) {
       if (!(key in syncValues)) {
         syncUpdates[key as keyof StorageData] = cloneValue(defaultValue) as never;
       }
@@ -203,7 +198,9 @@ export async function initializeStorage(): Promise<void> {
   // Write defaults to both storage areas in parallel
   await Promise.all([
     Object.keys(syncUpdates).length > 0 ? chrome.storage.sync.set(syncUpdates) : Promise.resolve(),
-    Object.keys(localUpdates).length > 0 ? chrome.storage.local.set(localUpdates) : Promise.resolve(),
+    Object.keys(localUpdates).length > 0
+      ? chrome.storage.local.set(localUpdates)
+      : Promise.resolve(),
   ]);
 }
 

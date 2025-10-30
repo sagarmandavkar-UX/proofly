@@ -2,12 +2,7 @@ import { createMirror, type Mirror } from './mirror.ts';
 import { ShadowOverlay } from './shadow-overlay.ts';
 import { UnderlineRenderer, type UnderlineDescriptor, type IssueType } from './renderer.ts';
 import { createRafScheduler } from './sync.ts';
-import {
-  computeLineHeight,
-  debounce,
-  getBoxMetrics,
-  type PaddingBox,
-} from './utils.ts';
+import { computeLineHeight, debounce, getBoxMetrics, type PaddingBox } from './utils.ts';
 import {
   buildCorrectionColorThemes,
   type CorrectionColorThemeMap,
@@ -156,7 +151,7 @@ export class TargetSession {
       return;
     }
 
-    const issue = this.issues.find(i => i.id === issueId);
+    const issue = this.issues.find((i) => i.id === issueId);
     if (!issue) {
       return;
     }
@@ -187,10 +182,14 @@ export class TargetSession {
     container.insertBefore(this.mirror.element, underlines);
 
     this.target.addEventListener('input', this.handleInput);
-    this.target.addEventListener('scroll', this.handleScroll, { passive: true });
+    this.target.addEventListener('scroll', this.handleScroll, {
+      passive: true,
+    });
     underlines.addEventListener('click', this.handleUnderlineClick);
     underlines.addEventListener('dblclick', this.handleUnderlineDoubleClick);
-    underlines.addEventListener('wheel', this.handleOverlayWheel, { passive: false });
+    underlines.addEventListener('wheel', this.handleOverlayWheel, {
+      passive: false,
+    });
     window.addEventListener('scroll', this.handleWindowScroll, true);
     window.addEventListener('resize', this.handleWindowResize);
 
@@ -230,7 +229,10 @@ export class TargetSession {
     this.renderer.clear();
     this.activeIssueId = null;
     this.overlay.elements.underlines.removeEventListener('click', this.handleUnderlineClick);
-    this.overlay.elements.underlines.removeEventListener('dblclick', this.handleUnderlineDoubleClick);
+    this.overlay.elements.underlines.removeEventListener(
+      'dblclick',
+      this.handleUnderlineDoubleClick
+    );
     this.overlay.elements.underlines.removeEventListener('wheel', this.handleOverlayWheel);
     this.target.removeEventListener('input', this.handleInput);
     this.target.removeEventListener('scroll', this.handleScroll);

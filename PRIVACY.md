@@ -22,12 +22,14 @@ Proofly is built on a foundation of privacy-first principles. This isn't just ma
 ## What Data We DON'T Collect
 
 ### Writing Content
+
 - ❌ We never see what you type
 - ❌ We never store your text
 - ❌ We never transmit your content anywhere
 - ❌ We don't have servers to receive data
 
 ### User Information
+
 - ❌ No email addresses
 - ❌ No names or personal identifiers
 - ❌ No IP addresses
@@ -35,6 +37,7 @@ Proofly is built on a foundation of privacy-first principles. This isn't just ma
 - ❌ No browsing history
 
 ### Usage Data
+
 - ❌ No analytics
 - ❌ No telemetry
 - ❌ No crash reports
@@ -42,6 +45,7 @@ Proofly is built on a foundation of privacy-first principles. This isn't just ma
 - ❌ No A/B testing
 
 ### Behavioral Data
+
 - ❌ No tracking pixels
 - ❌ No cookies (we don't use any)
 - ❌ No third-party scripts
@@ -117,27 +121,32 @@ Proofly doesn't store any data, and doesn't have any servers. The data it keeps 
 Proofly requests the following Chrome API permissions. Here's exactly what each one does and why we need it:
 
 ### Storage Permission
+
 - **Why**: Save your preferences (like auto-correct on/off, color choices)
 - **What**: Local settings only — no user content
 - **Scope**: Limited to Chrome's local storage API
 
 ### Content Scripts Permission
+
 - **Why**: Detect text fields and show corrections on web pages
 - **What**: Inject minimal scripts to highlight issues
 - **Scope**: Only active on text input elements
 - **Isolation**: Runs in Shadow DOM — no page interference
 
 ### Tabs Permission
+
 - **Why**: Know which tab needs proofreading
 - **What**: Basic tab information for sidebar panel
 - **Scope**: No access to tab content or URLs
 
 ### Side Panel Permission
+
 - **Why**: Display issues sidebar
 - **What**: Show dedicated panel with suggested correction list
 - **Scope**: UI only—no data collection
 
 ### Context Menus Permission
+
 - **Why**: Right-click "Proofread with Proofly" option
 - **What**: Add menu item for manual proofreading
 - **Scope**: Menu integration only
@@ -162,6 +171,7 @@ Proofly uses Chrome's Built-in AI Proofreader API for text analysis. This API is
 ### No Other Third Parties
 
 Proofly does not:
+
 - Use analytics services (no Google Analytics etc.)
 - Connect to advertising networks
 - Use CDNs for loading external resources
@@ -173,16 +183,19 @@ Proofly does not:
 ## Data You Can Delete
 
 ### Extension Settings
+
 1. Open `chrome://extensions/`
 2. Find Proofly
 3. Click "Remove"
 4. All settings are immediately deleted
 
 ### AI Model
+
 1. The Chrome Built-in AI model is shared across browser features
 2. To remove it: See [Chrome's AI settings](chrome://flags/#proofreader-api-for-gemini-nano)
 
 ### No Server-Side Data
+
 There's nothing to delete from our servers because we don't have any servers storing your data.
 
 ---
@@ -231,6 +244,7 @@ Under the California Consumer Privacy Act (CCPA):
 ## Browser Fingerprinting
 
 We **do not**:
+
 - Track your browser configuration
 - Create device fingerprints
 - Use canvas fingerprinting
@@ -254,6 +268,7 @@ We **do not**:
 ### What Happens If Proofly Is Compromised?
 
 Even if Proofly were compromised:
+
 - There's no database to breach (we don't have one)
 - There's no server to hack (we don't have servers)
 - There's no data to steal (we never collected any)
@@ -265,16 +280,19 @@ Your text never leaves your machine, so it's protected by your device's security
 ## Updates to This Policy
 
 We may update this policy if:
+
 - We add new features
 - Laws require clarification
 - Best practices evolve
 
 **We will never add telemetry, tracking, or data collection without:**
+
 1. Major version update
 2. Clear, prominent notice
 3. User opt-in (not opt-out)
 
 Any substantive changes will be announced via:
+
 - GitHub releases
 - Chrome Web Store listing
 - In-extension notice (if installed)
@@ -295,6 +313,7 @@ Don't take our word for it. Verify our privacy claims:
 ### Report Privacy Concerns
 
 If you find any privacy violations in our code:
+
 1. Open a [GitHub Issue](https://github.com/onderceylan/proofly/issues)
 2. We'll respond within 48 hours and fix immediately
 
@@ -302,14 +321,14 @@ If you find any privacy violations in our code:
 
 ## Comparison with Competitors
 
-| Feature | Proofly | Grammarly | LanguageTool | QuillBot |
-|---------|---------|-----------|--------------|----------|
-| **On-Device Processing** | ✅ Yes | ❌ No | ❌ No | ❌ No |
-| **Zero Data Collection** | ✅ Yes | ❌ No* | ❌ No* | ❌ No* |
-| **Open Source** | ✅ Yes | ❌ No | ⚠️ Partial | ❌ No |
-| **Works Offline** | ✅ Yes | ❌ No | ❌ No | ❌ No |
-| **No Account Required** | ✅ Yes | ❌ No | ⚠️ Optional | ❌ No |
-| **No Servers** | ✅ Yes | ❌ No | ❌ No | ❌ No |
+| Feature                  | Proofly | Grammarly | LanguageTool | QuillBot |
+| ------------------------ | ------- | --------- | ------------ | -------- |
+| **On-Device Processing** | ✅ Yes  | ❌ No     | ❌ No        | ❌ No    |
+| **Zero Data Collection** | ✅ Yes  | ❌ No\*   | ❌ No\*      | ❌ No\*  |
+| **Open Source**          | ✅ Yes  | ❌ No     | ⚠️ Partial   | ❌ No    |
+| **Works Offline**        | ✅ Yes  | ❌ No     | ❌ No        | ❌ No    |
+| **No Account Required**  | ✅ Yes  | ❌ No     | ⚠️ Optional  | ❌ No    |
+| **No Servers**           | ✅ Yes  | ❌ No     | ❌ No        | ❌ No    |
 
 \* These services transmit your text to their servers for processing and may collect usage data.
 
@@ -352,6 +371,6 @@ For privacy questions or concerns:
 
 **We built Proofly because privacy-first AI is possible, necessary, and right.**
 
-*Questions about this policy? Open a [GitHub Discussion](https://github.com/onderceylan/proofly/discussions)*
+_Questions about this policy? Open a [GitHub Discussion](https://github.com/onderceylan/proofly/discussions)_
 
 </div>
