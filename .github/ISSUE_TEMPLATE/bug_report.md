@@ -32,7 +32,7 @@ If applicable, add screenshots to help explain your problem.
 ## Environment
 
 - **Chrome Version**: [e.g. 141.0.6734.0]
-- **Extension Version**: [e.g. 1.0.0]
+- **Extension Version**: [e.g. 0.1.0]
 - **Operating System**: [e.g. macOS 15.0, Windows 11]
 - **Model Status**: [Downloaded/Not Downloaded/Downloading]
 
