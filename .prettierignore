@@ -20,3 +20,6 @@ build
 # Temporary files
 *.tmp
 *.temp
+
+# Control files
+test.html

@@ -5,20 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Proofly Test Page - All Editable Elements</title>
 
-    <!-- Early theme application to avoid flash: read system preference and set data-theme on the root immediately -->
     <script>
       (function () {
-        try {
-          const prefersDark =
-            window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-          const theme = prefersDark ? 'dark' : 'light';
-          if (theme === 'dark') {
-            document.documentElement.setAttribute('data-theme', 'dark');
-          } else {
-            document.documentElement.removeAttribute('data-theme');
-          }
-        } catch (e) {
-          // ignore - localStorage may be unavailable in some embedded contexts
+        const prefersDark =
+          window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = prefersDark ? 'dark' : 'light';
+        if (theme === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+          document.documentElement.removeAttribute('data-theme');
         }
       })();
     </script>
@@ -197,7 +192,7 @@
 
     <div class="section">
       <h2>1. Input Field (text)</h2>
-      <label for="test-input" class="visually-hidden">Test input</label>
+      <label for="test-input" class="visually-hidden">Input Field</label>
       <input
         id="test-input"
         type="text"
@@ -208,25 +203,21 @@
 
     <div class="section">
       <h2>2. Textarea Element</h2>
-      <label for="test-textarea" class="visually-hidden">Test textarea</label>
+      <label for="test-textarea" class="visually-hidden">Textarea element</label>
       <textarea
         id="test-textarea"
         placeholder="Type or paste text with grammar and speling mistakes..."
-      >
-This are a radnom text with a few classic common, and typicla typso and grammar issus. the Proofreader API hopefuly finds them all. Knocking at wood and crossed.</textarea
-      >
+      >This are a radnom text with a few classic common, and typicla typso and grammar issus. the Proofreader API hopefuly finds them all. Knocking at wood and crossed.</textarea>
     </div>
 
     <div class="section">
       <h2>3. ContentEditable Div</h2>
+      <label for="test-contenteditable-div" class="visually-hidden">contenteditable element</label>
       <div
         id="test-contenteditable-div"
         contenteditable="plaintext-only"
         data-placeholder="Click here to type with speling and grammer mistakes..."
-      >
-        This are another test with some obvius mistakes and typicla errors that should be detected
-        by the proofreading systm.
-      </div>
+      >This are another test with some obvius mistakes and typicla errors that should be detected by the proofreading systm.</div>
     </div>
 
     <div class="info">
@@ -276,23 +267,19 @@ This are a radnom text with a few classic common, and typicla typso and grammar 
           } else {
             document.documentElement.removeAttribute('data-theme');
           }
-          // update toggle UI
           toggleBtn.setAttribute('aria-pressed', String(theme === 'dark'));
           toggleBtn.textContent = theme === 'dark' ? '☀️' : '🌙';
         }
 
         function init() {
-          // start with system preference
           applyTheme(prefersDarkMQ.matches ? 'dark' : 'light');
 
-          // always listen for system changes and apply them (no persistence)
           if (typeof prefersDarkMQ.addEventListener === 'function') {
             prefersDarkMQ.addEventListener('change', (e) => {
               applyTheme(e.matches ? 'dark' : 'light');
             });
           }
 
-          // toggle behavior: clicking toggles between dark and light for the current session only (no saving)
           toggleBtn.addEventListener('click', () => {
             const currentIsDark = document.documentElement.getAttribute('data-theme') === 'dark';
             const next = currentIsDark ? 'light' : 'dark';
@@ -300,7 +287,6 @@ This are a radnom text with a few classic common, and typicla typso and grammar 
           });
         }
 
-        // Initialize when DOM is ready
         if (document.readyState === 'loading') {
           document.addEventListener('DOMContentLoaded', init);
         } else {
