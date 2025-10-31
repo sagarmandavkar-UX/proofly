@@ -1,4 +1,4 @@
-# AI Agents Development Guide
+# Proofly Development Guide
 
 Proofly is a privacy-first Chrome extension for proofreading that uses Chrome's Built-in AI API for on-device text correction.
 
@@ -208,13 +208,14 @@ When developing and debugging Chrome extension features, follow this iterative t
 2. **Wait for Auto-Build**: The dev script running in a separate terminal will automatically detect changes and rebuild
 3. **Navigate to Extension Page**: Use Chrome DevTools MCP to navigate to the extension page
    - Example: `chrome-extension://[extension-id]/src/options/index.html`
-4. **Fill Test Data**: Use `evaluate_script` to programmatically interact with the page
-   - Fill form inputs, trigger events, simulate user interactions
-5. **Inspect Console Logs**: Use `list_console_messages` and `get_console_message` to check for:
+4. **Fill Test Data**: Use `fill` tool to fill form inputs, trigger events, simulate user interactions
+   - Use `evaluate_script` as the last resort to programmatically interact with the page if `fill` tool does not work
+5. **Inspect Console Logs**: Use `list_console_messages` to check for:
    - JavaScript errors
    - Debug logs
    - API responses
    - State changes
+   - Avoid `get_console_message` tool calling as it does not have access to extension contexts
 6. **Access Extension Logs**: Use `extension_get_logs` to retrieve app logs across all contexts:
    ```typescript
    mcp__chrome -
@@ -291,7 +292,6 @@ mcp__chrome - devtools__take_screenshot();
 
   // ✅ Good: Relative path
   import { logger } from '../services/logger.ts';
-  import { logger } from '../../services/logger.ts';
   ```
 
 #### Comments
@@ -817,58 +817,6 @@ describe('ProofreadingService', () => {
   });
 });
 ```
-
-## 🎯 Phase 1 (MVP)
-
-1. Implement basic content script injection
-2. Create design token system
-3. Build `proofly-widget` web component
-4. Create pure service functions
-5. Integrate Chrome Built-in AI Proofreader API
-6. Add context menu activation
-7. Build settings page
-8. Set up unit testing (Vitest)
-
-### Key Files to Create
-
-1. `src/shared/styles/tokens.css`
-2. `src/shared/types.ts`
-3. `src/shared/utils/debounce.ts`
-4. `src/content/content-script.ts`
-5. `src/content/services/proofreader.ts`
-6. `src/content/components/proofly-widget.ts`
-7. `src/background/ai-manager.ts`
-
-## 🔗 Resources
-
-- [Chrome Built-in AI Proofreader API](https://developer.chrome.com/docs/ai/proofreader-api)
-- [Web Components MDN](https://developer.mozilla.org/en-US/docs/Web/Web_Components)
-- [CRXJS Documentation](https://crxjs.dev/vite-plugin)
-
-## 🤝 Code Review Checklist
-
-- [ ] Pure Functions with no side effects
-- [ ] Dependency Injection
-- [ ] Testable without complex mocking
-- [ ] Type Safety
-- [ ] Minimal bundle size
-- [ ] Memory leaks prevented
-- [ ] Style isolation (Shadow DOM)
-- [ ] Design tokens used
-- [ ] Composable functions
-- [ ] Single responsibility
-
-## Architecture Decisions
-
-**ADR-001: Factory Functions over Classes** - Simpler composition, testing, no `this` binding issues
-
-**ADR-002: Dependency Injection** - All dependencies via parameters, never imports/globals
-
-**ADR-003: Design Tokens** - All styling via CSS custom properties for theming
-
-**ADR-004: Component-Specific Styles** - Each component imports only needed styles
-
-**ADR-005: Event-Based Communication** - Custom events for decoupled components
 
 ---
 
