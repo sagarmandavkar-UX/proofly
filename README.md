@@ -363,5 +363,4 @@ If you find Proofly useful, please consider:
 - 🔀 Contributing code
 - 📢 Spreading the word
 
-
 **Privacy-first writing assistance is possible. Let's prove it together.**

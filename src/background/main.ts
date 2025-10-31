@@ -7,11 +7,32 @@ import type {
   IssuesStateRequestMessage,
   IssuesStateResponseMessage,
   ProoflyMessage,
+  ProofreaderStateMessage,
 } from '../shared/messages/issues.ts';
 
 let badgeListenersRegistered = false;
-let currentBadgeState: 'ready' | 'clear' | null = null;
+let currentBadgeState: 'ready' | 'clear' | 'count' | null = null;
 const issuesByTab = new Map<number, IssuesUpdatePayload>();
+const busyTabs = new Set<number>();
+const BUSY_BADGE_COLOR = '#facc15';
+const BUSY_TEXT_COLOR = '#000000';
+const DEFAULT_TEXT_COLOR = '#ffffff';
+
+function applyBusyBadge(tabId: number, text: string): void {
+  chrome.action
+    .setBadgeBackgroundColor({ color: BUSY_BADGE_COLOR, tabId })
+    .catch((error) => logger.warn({ error, tabId }, 'Failed to set busy badge color'));
+
+  if ('setBadgeTextColor' in chrome.action) {
+    chrome.action
+      .setBadgeTextColor({ color: BUSY_TEXT_COLOR, tabId })
+      .catch((error) => logger.warn({ error, tabId }, 'Failed to set busy badge text color'));
+  }
+
+  chrome.action
+    .setBadgeText({ text, tabId })
+    .catch((error) => logger.warn({ error, tabId }, 'Failed to set busy badge text'));
+}
 
 function countIssues(payload: IssuesUpdatePayload | null | undefined): number {
   if (!payload) {
@@ -25,18 +46,31 @@ async function updateBadgeForIssues(
   payload: IssuesUpdatePayload | null
 ): Promise<void> {
   const totalIssues = countIssues(payload);
+  const busyText = totalIssues > 0 ? (totalIssues > 99 ? '99+' : String(totalIssues)) : ' ';
+  const idleText = totalIssues > 0 ? (totalIssues > 99 ? '99+' : String(totalIssues)) : '';
 
-  if (totalIssues > 0) {
-    const text = totalIssues > 99 ? '99+' : String(totalIssues);
-    await chrome.action.setBadgeBackgroundColor({ color: '#dc2626', tabId });
-    if ('setBadgeTextColor' in chrome.action) {
-      await chrome.action.setBadgeTextColor({ color: '#ffffff', tabId });
-    }
-    await chrome.action.setBadgeText({ text, tabId });
+  if (busyTabs.has(tabId)) {
+    await chrome.action
+      .setBadgeText({ text: busyText, tabId })
+      .catch((error) => logger.warn({ error, tabId }, 'Failed to update badge text while busy'));
     return;
   }
 
-  await chrome.action.setBadgeText({ text: '', tabId });
+  if (totalIssues > 0) {
+    await chrome.action.setBadgeBackgroundColor({ color: '#dc2626', tabId });
+    if ('setBadgeTextColor' in chrome.action) {
+      await chrome.action.setBadgeTextColor({ color: DEFAULT_TEXT_COLOR, tabId }).catch((error) => {
+        logger.warn({ error, tabId }, 'Failed to restore badge text color');
+      });
+    }
+    await chrome.action.setBadgeText({ text: idleText, tabId });
+    currentBadgeState = 'count';
+    return;
+  }
+
+  await chrome.action
+    .setBadgeText({ text: '', tabId })
+    .catch((error) => logger.warn({ error, tabId }, 'Failed to clear badge text'));
   currentBadgeState = 'clear';
 }
 
@@ -61,6 +95,51 @@ function handleIssuesStateRequest(
 ): void {
   const payload = issuesByTab.get(message.payload.tabId) ?? null;
   sendResponse({ type: 'proofly:issues-state', payload });
+}
+
+function handleProofreaderStateMessage(
+  message: ProofreaderStateMessage,
+  sender: chrome.runtime.MessageSender
+): void {
+  const tabId = sender.tab?.id;
+  if (typeof tabId !== 'number') {
+    return;
+  }
+
+  if (message.payload.busy) {
+    busyTabs.add(tabId);
+    const payload = issuesByTab.get(tabId) ?? null;
+    const totalIssues = countIssues(payload);
+    const text = totalIssues > 0 ? (totalIssues > 99 ? '99+' : String(totalIssues)) : ' ';
+
+    applyBusyBadge(tabId, text);
+    setTimeout(() => {
+      if (busyTabs.has(tabId)) {
+        const latestPayload = issuesByTab.get(tabId) ?? null;
+        const latestTotal = countIssues(latestPayload);
+        const latestText = latestTotal > 0 ? (latestTotal > 99 ? '99+' : String(latestTotal)) : ' ';
+        applyBusyBadge(tabId, latestText);
+      }
+    }, 120);
+
+    void chrome.runtime.sendMessage({
+      type: 'proofly:proofreader-state-update',
+      payload: { tabId, busy: true },
+    });
+    return;
+  }
+
+  busyTabs.delete(tabId);
+  const payload = issuesByTab.get(tabId) ?? null;
+
+  void chrome.runtime.sendMessage({
+    type: 'proofly:proofreader-state-update',
+    payload: { tabId, busy: false },
+  });
+
+  void updateBadgeForIssues(tabId, payload).catch((error) => {
+    logger.error({ error, tabId }, 'Failed to restore badge after proofreader idle');
+  });
 }
 
 async function updateActionBadge(): Promise<void> {
@@ -140,6 +219,11 @@ chrome.runtime.onMessage.addListener((message: ProoflyMessage, sender, sendRespo
     return false;
   }
 
+  if (message.type === 'proofly:proofreader-state') {
+    handleProofreaderStateMessage(message, sender);
+    return false;
+  }
+
   if (message.type === 'proofly:get-issues-state') {
     handleIssuesStateRequest(message, sendResponse);
     return true;
@@ -150,6 +234,7 @@ chrome.runtime.onMessage.addListener((message: ProoflyMessage, sender, sendRespo
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   issuesByTab.delete(tabId);
+  busyTabs.delete(tabId);
   void updateBadgeForIssues(tabId, null).catch((error) => {
     logger.error({ error, tabId }, 'Failed to reset badge on tab removal');
   });
@@ -158,6 +243,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (changeInfo.status === 'loading') {
     issuesByTab.delete(tabId);
+    busyTabs.delete(tabId);
     void updateBadgeForIssues(tabId, null).catch((error) => {
       logger.error({ error, tabId }, 'Failed to reset badge on navigation');
     });

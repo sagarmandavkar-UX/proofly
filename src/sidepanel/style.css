@@ -7,6 +7,36 @@ body {
   color: var(--color-text-primary);
 }
 
+.prfly-panel-busy {
+  background: linear-gradient(var(--gradient-angle), #3dadd9, #4f46e5, #d94a3d, #d9a036);
+  animation: rotation 5s linear infinite;
+}
+
+.prfly-panel-busy::before {
+  content: '';
+  position: absolute;
+  inset: 0.3rem;
+  filter: blur(0.25rem);
+  background-color: var(--color-surface-subtle);
+}
+
 #app {
   display: grid;
+  z-index: 1;
+  position: relative;
+}
+
+@property --gradient-angle {
+  inherits: false;
+  initial-value: 0deg;
+  syntax: '<angle>';
+}
+
+@keyframes rotation {
+  0% {
+    --gradient-angle: 0deg;
+  }
+  100% {
+    --gradient-angle: 360deg;
+  }
 }

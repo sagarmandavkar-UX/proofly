@@ -10,6 +10,7 @@ import type {
   IssuesUpdateMessage,
   IssuesUpdatePayload,
   ProoflyMessage,
+  ProofreaderStateUpdateMessage,
 } from '../shared/messages/issues.ts';
 import { ProoflyIssuesPanel } from './components/issues-panel.ts';
 import { ensureProofreaderModelReady } from '../services/model-checker.ts';
@@ -23,6 +24,7 @@ let currentWindowId: number | undefined;
 let messageListenerRegistered = false;
 let tabActivationListenerRegistered = false;
 let tabRemovalListenerRegistered = false;
+let panelBusy = false;
 
 function updatePanelState(payload: IssuesUpdatePayload | null): void {
   const normalizedPayload = payload
@@ -141,6 +143,11 @@ function handleRuntimeMessage(
     return handleIssuesUpdateMessage(message, sender);
   }
 
+  if (message.type === 'proofly:proofreader-state-update') {
+    handleProofreaderStateUpdate(message);
+    return false;
+  }
+
   return false;
 }
 
@@ -182,6 +189,7 @@ function handleTabRemoved(tabId: number): void {
   if (tabId === activeTabId) {
     activeTabId = null;
     updatePanelState(null);
+    panelBusy = false;
   }
 }
 
@@ -262,6 +270,16 @@ async function handleFixAllIssues(): Promise<void> {
   } catch (error) {
     logger.error({ error, tabId: activeTabId }, 'Failed to fix all issues from sidepanel');
   }
+}
+
+function handleProofreaderStateUpdate(message: ProofreaderStateUpdateMessage): void {
+  if (activeTabId !== message.payload.tabId) {
+    return;
+  }
+
+  panelBusy = message.payload.busy;
+
+  document.body.classList.toggle('prfly-panel-busy', panelBusy);
 }
 
 void initSidepanel();

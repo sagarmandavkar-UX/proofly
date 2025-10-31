@@ -46,6 +46,21 @@ export interface ApplyAllIssuesMessage {
   type: 'proofly:apply-all-issues';
 }
 
+export interface ProofreaderStateMessage {
+  type: 'proofly:proofreader-state';
+  payload: {
+    busy: boolean;
+  };
+}
+
+export interface ProofreaderStateUpdateMessage {
+  type: 'proofly:proofreader-state-update';
+  payload: {
+    tabId: number;
+    busy: boolean;
+  };
+}
+
 export interface IssuesStateRequestMessage {
   type: 'proofly:get-issues-state';
   payload: {
@@ -62,6 +77,8 @@ export type ProoflyMessage =
   | IssuesUpdateMessage
   | ApplyIssueMessage
   | ApplyAllIssuesMessage
+  | ProofreaderStateMessage
+  | ProofreaderStateUpdateMessage
   | IssuesStateRequestMessage
   | IssuesStateResponseMessage;
 

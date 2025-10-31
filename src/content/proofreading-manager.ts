@@ -61,6 +61,7 @@ export class ProofreadingManager {
   private readonly elementIds = new WeakMap<HTMLElement, string>();
   private readonly elementLookup = new Map<string, HTMLElement>();
   private readonly elementCorrections = new Map<HTMLElement, ProofreadCorrection[]>();
+  private lastProofreaderBusy = false;
   private pendingIssuesUpdate = false;
   private controller = createProofreadingController({
     runProofread: (element, text) => this.runProofread(element, text),
@@ -374,6 +375,24 @@ export class ProofreadingManager {
     this.scheduleIssuesUpdate();
   }
 
+  private reportProofreaderBusy(busy: boolean): void {
+    if (this.lastProofreaderBusy === busy) {
+      return;
+    }
+
+    this.lastProofreaderBusy = busy;
+
+    try {
+      void chrome.runtime
+        .sendMessage({ type: 'proofly:proofreader-state', payload: { busy } })
+        .catch((error) => {
+          logger.warn({ error }, 'Failed to notify background of proofreader state');
+        });
+    } catch (error) {
+      logger.warn({ error }, 'Proofreader state notification threw unexpectedly');
+    }
+  }
+
   private storeElementCorrections(element: HTMLElement, corrections: ProofreadCorrection[]): void {
     if (corrections.length === 0) {
       this.elementCorrections.delete(element);
@@ -516,31 +535,36 @@ export class ProofreadingManager {
       return;
     }
 
-    for (const element of elements) {
-      if (!element) {
-        continue;
-      }
-
-      let safetyCounter = 0;
-      while (true) {
-        const corrections = this.controller.getCorrections(element);
-        if (!corrections || corrections.length === 0) {
-          break;
+    this.reportProofreaderBusy(true);
+    try {
+      for (const element of elements) {
+        if (!element) {
+          continue;
         }
 
-        const [nextCorrection] = corrections;
-        this.controller.applyCorrection(element, nextCorrection);
-        safetyCounter += 1;
+        let safetyCounter = 0;
+        while (true) {
+          const corrections = this.controller.getCorrections(element);
+          if (!corrections || corrections.length === 0) {
+            break;
+          }
 
-        if (safetyCounter > 1000) {
-          logger.warn({ element }, 'Stopping bulk apply due to iteration safety limit');
-          break;
+          const [nextCorrection] = corrections;
+          this.controller.applyCorrection(element, nextCorrection);
+          safetyCounter += 1;
+
+          if (safetyCounter > 1000) {
+            logger.warn({ element }, 'Stopping bulk apply due to iteration safety limit');
+            break;
+          }
         }
       }
+
+      this.scheduleIssuesUpdate();
+      logger.info('Applied all outstanding issues');
+    } finally {
+      this.reportProofreaderBusy(false);
     }
-
-    this.scheduleIssuesUpdate();
-    logger.info('Applied all outstanding issues');
   }
 
   private resolveCorrectionForIssue(
@@ -831,7 +855,9 @@ export class ProofreadingManager {
       correctionExplanationLanguage: language,
     });
     const adapter = createProofreaderAdapter(proofreader);
-    const service = createProofreadingService(adapter);
+    const service = createProofreadingService(adapter, undefined, {
+      onBusyChange: (busy) => this.reportProofreaderBusy(busy),
+    });
     this.proofreaderServices.set(language, service);
     return service;
   }

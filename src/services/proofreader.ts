@@ -19,6 +19,10 @@ export interface ProofreaderServiceConfig {
   maxTextLength: number;
 }
 
+export interface ProofreadingServiceHooks {
+  onBusyChange?(busy: boolean): void;
+}
+
 export const DEFAULT_PROOFREADER_CONFIG: ProofreaderConfig = {
   expectedInputLanguages: ['en'],
   includeCorrectionTypes: true,
@@ -104,7 +108,8 @@ export function createProofreaderAdapter(proofreader: Proofreader): IProofreader
  */
 export function createProofreadingService(
   proofreader: IProofreader,
-  config: ProofreaderServiceConfig = DEFAULT_SERVICE_CONFIG
+  config: ProofreaderServiceConfig = DEFAULT_SERVICE_CONFIG,
+  hooks?: ProofreadingServiceHooks
 ) {
   return {
     /**
@@ -129,7 +134,12 @@ export function createProofreadingService(
         );
       }
 
-      return proofreader.proofread(text);
+      hooks?.onBusyChange?.(true);
+      try {
+        return await proofreader.proofread(text);
+      } finally {
+        hooks?.onBusyChange?.(false);
+      }
     },
 
     /**

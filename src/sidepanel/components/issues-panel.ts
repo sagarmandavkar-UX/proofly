@@ -263,7 +263,7 @@ export class ProoflyIssuesPanel extends HTMLElement {
         width: 2rem;
         height: 2rem;
         cursor: pointer;
-        transition: background var(--transition-base), color var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base);;
+        transition: background var(--transition-base), color var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base);
         padding: 0;
       }
 
