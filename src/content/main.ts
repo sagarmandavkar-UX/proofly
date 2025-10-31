@@ -49,6 +49,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'proofly:apply-all-issues') {
+    manager?.applyAllIssues();
+    sendResponse({ success: true });
+    return true;
+  }
+
   return false;
 });
 

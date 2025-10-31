@@ -42,6 +42,10 @@ export interface ApplyIssueMessage {
   };
 }
 
+export interface ApplyAllIssuesMessage {
+  type: 'proofly:apply-all-issues';
+}
+
 export interface IssuesStateRequestMessage {
   type: 'proofly:get-issues-state';
   payload: {
@@ -57,6 +61,7 @@ export interface IssuesStateResponseMessage {
 export type ProoflyMessage =
   | IssuesUpdateMessage
   | ApplyIssueMessage
+  | ApplyAllIssuesMessage
   | IssuesStateRequestMessage
   | IssuesStateResponseMessage;
 

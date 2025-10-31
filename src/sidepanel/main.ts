@@ -83,6 +83,7 @@ function mountIssuesPanel(): void {
   panelElement = document.createElement('prfly-issues-panel') as ProoflyIssuesPanel;
   panelElement.addEventListener('apply-issue', onApplyIssue);
   panelElement.addEventListener('open-settings', onOpenSettings);
+  panelElement.addEventListener('fix-all-issues', onFixAllIssues);
 
   const section = document.createElement('div');
   section.className = 'prfly-section prfly-section--muted';
@@ -213,6 +214,10 @@ function onOpenSettings(): void {
   });
 }
 
+function onFixAllIssues(): void {
+  void handleFixAllIssues();
+}
+
 async function handleApplyIssue(event: CustomEvent<ApplyIssueDetail>): Promise<void> {
   if (!activeTabId) {
     logger.warn('Apply issue requested without an active tab');
@@ -240,6 +245,22 @@ async function handleApplyIssue(event: CustomEvent<ApplyIssueDetail>): Promise<v
       },
       'Failed to apply issue from sidepanel'
     );
+  }
+}
+
+async function handleFixAllIssues(): Promise<void> {
+  if (!activeTabId) {
+    logger.warn('Fix all issues requested without an active tab');
+    return;
+  }
+
+  try {
+    await chrome.tabs.sendMessage(activeTabId, {
+      type: 'proofly:apply-all-issues',
+    });
+    logger.info({ tabId: activeTabId }, 'Fix all issues dispatched');
+  } catch (error) {
+    logger.error({ error, tabId: activeTabId }, 'Failed to fix all issues from sidepanel');
   }
 }
 

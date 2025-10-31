@@ -48,6 +48,21 @@ export class ProoflyIssuesPanel extends HTMLElement {
       return;
     }
 
+    const fixAllButton = target.closest<HTMLButtonElement>('.fix-all-btn');
+    if (fixAllButton) {
+      if (fixAllButton.disabled) {
+        return;
+      }
+      event.preventDefault();
+      this.dispatchEvent(
+        new CustomEvent('fix-all-issues', {
+          bubbles: true,
+          composed: true,
+        })
+      );
+      return;
+    }
+
     const card = target.closest('.issue');
     if (!card) {
       return;
@@ -78,6 +93,8 @@ export class ProoflyIssuesPanel extends HTMLElement {
   private render(): void {
     const groups = this.state?.elements ?? [];
     const totalIssues = groups.reduce((count, group) => count + group.issues.length, 0);
+    const settingsIconUrl = chrome.runtime.getURL('src/assets/settings.svg');
+    const fixAllIconUrl = chrome.runtime.getURL('src/assets/check-circle.svg');
 
     this.shadow.innerHTML = `
       <style>
@@ -91,8 +108,17 @@ export class ProoflyIssuesPanel extends HTMLElement {
           </div>
           <div class="panel__header-right">
             ${this.renderIssueSummary(totalIssues)}
-            <button type="button" class="settings-btn" title="Open settings" aria-label="Open settings">
-              <img src="${chrome.runtime.getURL('src/assets/settings.svg')}" alt="" />
+            <button
+              type="button"
+              class="panel-action-btn fix-all-btn"
+              title="Apply all corrections"
+              aria-label="Apply all corrections"
+              ${totalIssues === 0 ? 'disabled' : ''}
+            >
+              <img src="${fixAllIconUrl}" alt="" />
+            </button>
+            <button type="button" class="panel-action-btn settings-btn" title="Open settings" aria-label="Open settings">
+              <img src="${settingsIconUrl}" alt="" />
             </button>
           </div>
         </header>
@@ -226,7 +252,7 @@ export class ProoflyIssuesPanel extends HTMLElement {
         font-weight: var(--font-weight-medium);
       }
 
-      .settings-btn {
+      .panel-action-btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -241,16 +267,31 @@ export class ProoflyIssuesPanel extends HTMLElement {
         padding: 0;
       }
 
-      .settings-btn:hover,
-      .settings-btn:focus-visible {
+      .panel-action-btn:hover,
+      .panel-action-btn:focus-visible {
         border-color: var(--color-primary);
         box-shadow: 0 0 0 3px var(--color-primary-ring);
       }
 
-      .settings-btn img {
+      .panel-action-btn[disabled] {
+        cursor: not-allowed;
+        opacity: 0.55;
+        box-shadow: none;
+        border-color: var(--color-border);
+      }
+
+      .panel-action-btn img {
         width: 1.1rem;
         height: 1.1rem;
         display: block;
+      }
+
+      .fix-all-btn img {
+        color: var(--color-success-text);
+      }
+
+      .fix-all-btn img {
+        color: var(--color-success-text);
       }
 
       .panel__status--idle {
@@ -371,6 +412,10 @@ export class ProoflyIssuesPanel extends HTMLElement {
       .apply-btn:active {
         background: var(--color-primary-active);
         border-color: var(--color-primary-active);
+      }
+      
+      .fix-all-btn img {
+        color: var(--color-success-text);        
       }
 
       .empty {

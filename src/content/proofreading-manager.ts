@@ -509,6 +509,40 @@ export class ProofreadingManager {
     this.scheduleIssuesUpdate();
   }
 
+  applyAllIssues(): void {
+    const elements = Array.from(this.elementCorrections.keys());
+    if (elements.length === 0) {
+      logger.info('Fix all requested but no issues are available');
+      return;
+    }
+
+    for (const element of elements) {
+      if (!element) {
+        continue;
+      }
+
+      let safetyCounter = 0;
+      while (true) {
+        const corrections = this.controller.getCorrections(element);
+        if (!corrections || corrections.length === 0) {
+          break;
+        }
+
+        const [nextCorrection] = corrections;
+        this.controller.applyCorrection(element, nextCorrection);
+        safetyCounter += 1;
+
+        if (safetyCounter > 1000) {
+          logger.warn({ element }, 'Stopping bulk apply due to iteration safety limit');
+          break;
+        }
+      }
+    }
+
+    this.scheduleIssuesUpdate();
+    logger.info('Applied all outstanding issues');
+  }
+
   private resolveCorrectionForIssue(
     element: HTMLElement,
     issueId: string
