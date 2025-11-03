@@ -250,6 +250,10 @@ npx tsc --noEmit
 # Format checking
 npm run format:check
 
+# Puppeteer tests
+npm test
+npm run test:watch
+
 # Load extension in Chrome
 # 1. Open chrome://extensions/
 # 2. Enable "Developer mode"
