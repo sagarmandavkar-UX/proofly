@@ -9,8 +9,8 @@ export default defineConfig({
     testTimeout: 30000,
     hookTimeout: 30000,
 
-    // Run tests serially since we're using a shared browser instance
-    threads: false,
+    // Global setup that runs once before all tests
+    globalSetup: ['./tests/helpers/global-setup.ts'],
 
     // Setup file that runs before each test file
     setupFiles: ['./tests/helpers/setup.ts'],
