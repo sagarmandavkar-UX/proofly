@@ -6,11 +6,13 @@ import {
   ensureAutoFixOnDoubleClick,
   resetExtensionStorage,
 } from './helpers/fixtures';
+import { getBrowser } from './helpers/setup';
 import {
   collectHighlightDetails,
   selectHighlightByWord,
   clickHighlightDetail,
   waitForHighlightCount,
+  getPageBadgeCount,
   countContentEditableHighlights,
   waitForContentEditableHighlightCount,
   waitForPopoverOpen,
@@ -215,6 +217,64 @@ describe('Proofly proofreading', () => {
 
     const highlightCount = await waitForHighlightCount(page, 'test-input', (count) => count > 0);
     expect(highlightCount).toBeGreaterThan(0);
+  });
+
+  test('should clear input field highlights after applying all fixes', async () => {
+    await ensureAutoFixOnDoubleClick(page, false);
+
+    await page.goto('http://localhost:8080/test.html', { waitUntil: 'networkidle0' });
+
+    await page.waitForSelector('#test-input', { timeout: 10000 });
+    await page.focus('#test-input');
+
+    await page.evaluate(() => {
+      const element = document.getElementById('test-input') as HTMLInputElement;
+      if (element) {
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
+
+    await page.waitForSelector('proofly-highlighter', { timeout: 10000 });
+
+    let remaining = await waitForHighlightCount(page, 'test-input', (count) => count > 0);
+
+    while (remaining > 0) {
+      const highlights = await collectHighlightDetails(page, 'test-input');
+      const targetHighlight = highlights[0];
+      if (!targetHighlight) {
+        break;
+      }
+
+      await clickHighlightDetail(page, targetHighlight);
+      await waitForPopoverOpen(page);
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      await page.evaluate(() => {
+        const popover = document.querySelector('proofly-correction-popover');
+        const applyButton = popover?.shadowRoot?.querySelector(
+          '.apply-button'
+        ) as HTMLButtonElement | null;
+        applyButton?.click();
+      });
+
+      await waitForPopoverClosed(page);
+
+      remaining = await waitForHighlightCount(page, 'test-input', (count) => count < remaining);
+    }
+
+    const finalHighlights = await collectHighlightDetails(page, 'test-input');
+    expect(finalHighlights.length).toBe(0);
+
+    const browser = getBrowser();
+    const extensionId = getExtensionId();
+    const badgeText = await getPageBadgeCount(
+      browser,
+      extensionId,
+      'http://localhost:8080/test.html'
+    );
+    console.log({ badgeText });
+    expect(badgeText === null || badgeText === '' || badgeText === ' ').toBe(true);
   });
 
   test('should apply autofix on double-click when enabled', async () => {

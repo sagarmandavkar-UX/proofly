@@ -46,7 +46,7 @@ export async function collectHighlightDetails(
 
       const highlightNodes = Array.from(hostForField.shadowRoot.querySelectorAll('.u'));
       if (highlightNodes.length === 0) {
-        return null;
+        return [];
       }
 
       const value =
@@ -237,6 +237,32 @@ export async function waitForContentEditableHighlightCount(
   }
 
   throw new Error(`Contenteditable highlight count did not satisfy predicate for ${fieldId}`);
+}
+
+export async function getPageBadgeCount(
+  browser: import('puppeteer-core').Browser,
+  extensionId: string,
+  targetUrl: string
+): Promise<string | null> {
+  const page = await browser.newPage();
+  await page.goto(`chrome-extension://${extensionId}/src/options/index.html`, {
+    waitUntil: 'domcontentloaded',
+  });
+
+  const badgeText = await page.evaluate(async (url) => {
+    if (!chrome?.action?.getBadgeText) {
+      return null;
+    }
+    const tabs = await chrome.tabs.query({ url });
+    const tabId = tabs[0]?.id;
+    if (typeof tabId !== 'number') {
+      return null;
+    }
+    return chrome.action.getBadgeText({ tabId });
+  }, targetUrl);
+
+  await page.close();
+  return badgeText ?? null;
 }
 
 export async function hasMirrorOverlay(page: Page): Promise<boolean> {
