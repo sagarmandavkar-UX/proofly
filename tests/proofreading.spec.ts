@@ -31,65 +31,6 @@ describe('Proofly proofreading', () => {
     });
   });
 
-  test('should inject highlights on contenteditable input', async () => {
-    console.log('Focusing contenteditable div and triggering input event');
-    await page.waitForSelector('#test-contenteditable-div', { timeout: 10000 });
-    await page.focus('#test-contenteditable-div');
-
-    await page.evaluate(() => {
-      const element = document.getElementById('test-contenteditable-div');
-      if (element) {
-        element.dispatchEvent(new Event('input', { bubbles: true }));
-      }
-    });
-
-    console.log('Waiting for highlights to be injected...');
-    await page.waitForFunction(
-      () => {
-        if (!('highlights' in CSS)) return false;
-        const errorTypes = [
-          'spelling',
-          'grammar',
-          'punctuation',
-          'capitalization',
-          'preposition',
-          'missing-words',
-        ];
-        for (const errorType of errorTypes) {
-          const highlight = CSS.highlights.get(errorType);
-          if (highlight && highlight.size > 0) {
-            return true;
-          }
-        }
-        return false;
-      },
-      { timeout: 10000 }
-    );
-
-    console.log('Counting highlights');
-    const highlightCount = await page.evaluate(() => {
-      let totalRanges = 0;
-      const errorTypes = [
-        'spelling',
-        'grammar',
-        'punctuation',
-        'capitalization',
-        'preposition',
-        'missing-words',
-      ];
-      for (const errorType of errorTypes) {
-        const highlight = CSS.highlights.get(errorType);
-        if (highlight) {
-          totalRanges += highlight.size;
-        }
-      }
-      return totalRanges;
-    });
-
-    console.log(`Found ${highlightCount} highlights`);
-    expect(highlightCount).toBeGreaterThan(0);
-  });
-
   test('should inject highlights on input field', async () => {
     console.log('Focusing input field and triggering input event');
     await page.waitForSelector('#test-input', { timeout: 10000 });
@@ -144,5 +85,64 @@ describe('Proofly proofreading', () => {
 
     console.log(`Mirror overlay present: ${hasMirrorOverlay}`);
     expect(hasMirrorOverlay).toBe(true);
+  });
+
+  test('should inject highlights on contenteditable input', async () => {
+    console.log('Focusing contenteditable div and triggering input event');
+    await page.waitForSelector('#test-contenteditable-div', { timeout: 10000 });
+    await page.focus('#test-contenteditable-div');
+
+    await page.evaluate(() => {
+      const element = document.getElementById('test-contenteditable-div');
+      if (element) {
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
+
+    console.log('Waiting for highlights to be injected...');
+    await page.waitForFunction(
+        () => {
+          if (!('highlights' in CSS)) return false;
+          const errorTypes = [
+            'spelling',
+            'grammar',
+            'punctuation',
+            'capitalization',
+            'preposition',
+            'missing-words',
+          ];
+          for (const errorType of errorTypes) {
+            const highlight = CSS.highlights.get(errorType);
+            if (highlight && highlight.size > 0) {
+              return true;
+            }
+          }
+          return false;
+        },
+        { timeout: 10000 }
+    );
+
+    console.log('Counting highlights');
+    const highlightCount = await page.evaluate(() => {
+      let totalRanges = 0;
+      const errorTypes = [
+        'spelling',
+        'grammar',
+        'punctuation',
+        'capitalization',
+        'preposition',
+        'missing-words',
+      ];
+      for (const errorType of errorTypes) {
+        const highlight = CSS.highlights.get(errorType);
+        if (highlight) {
+          totalRanges += highlight.size;
+        }
+      }
+      return totalRanges;
+    });
+
+    console.log(`Found ${highlightCount} highlights`);
+    expect(highlightCount).toBeGreaterThan(0);
   });
 });
