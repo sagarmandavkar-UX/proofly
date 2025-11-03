@@ -10,8 +10,10 @@ import {
   collectHighlightDetails,
   selectHighlightByWord,
   clickHighlightDetail,
+  waitForHighlightCount,
   waitForPopoverOpen,
   waitForPopoverClosed,
+  hasMirrorOverlay,
 } from './helpers/utils';
 import { Page } from 'puppeteer-core';
 
@@ -61,16 +63,26 @@ describe('Proofly proofreading', () => {
     await page.waitForSelector('proofly-highlighter', { timeout: 10000 });
 
     console.log('Checking for mirror in shadow DOM');
-    const hasMirrorOverlay = await page.evaluate(() => {
-      const highlighter = document.querySelector('proofly-highlighter');
-      if (!highlighter?.shadowRoot) return false;
 
-      const mirror = highlighter.shadowRoot.querySelector('#mirror');
-      return !!mirror;
-    });
+    const mirrorOverlay = await hasMirrorOverlay(page);
+    console.log(`Mirror overlay present: ${mirrorOverlay}`);
+    expect(mirrorOverlay).toBe(true);
 
-    console.log(`Mirror overlay present: ${hasMirrorOverlay}`);
-    expect(hasMirrorOverlay).toBe(true);
+    const initialCount = await waitForHighlightCount(page, 'test-input', (count) => count > 0);
+
+    // await delay(1000);
+
+    await page.click('#test-input');
+    await page.keyboard.press('ArrowRight');
+    await page.type('#test-input', ' mre errror words');
+
+    const updatedCount = await waitForHighlightCount(
+      page,
+      'test-input',
+      (count) => count > initialCount
+    );
+
+    expect(updatedCount).toBeGreaterThan(initialCount);
   });
 
   test('should handle popover interactions for input highlights', async () => {
@@ -268,16 +280,23 @@ describe('Proofly proofreading', () => {
     await page.waitForSelector('proofly-highlighter', { timeout: 10000 });
 
     console.log('Checking for mirror in shadow DOM');
-    const hasMirrorOverlay = await page.evaluate(() => {
-      const highlighter = document.querySelector('proofly-highlighter');
-      if (!highlighter?.shadowRoot) return false;
+    const mirrorOverlay = await hasMirrorOverlay(page);
+    console.log(`Mirror overlay present: ${mirrorOverlay}`);
+    expect(mirrorOverlay).toBe(true);
 
-      const mirror = highlighter.shadowRoot.querySelector('#mirror');
-      return !!mirror;
-    });
+    const initialCount = await waitForHighlightCount(page, 'test-textarea', (count) => count > 0);
 
-    console.log(`Mirror overlay present: ${hasMirrorOverlay}`);
-    expect(hasMirrorOverlay).toBe(true);
+    await page.click('#test-textarea');
+    await page.keyboard.press('ArrowRight');
+    await page.type('#test-textarea', ' more errror words appear');
+
+    const updatedCount = await waitForHighlightCount(
+      page,
+      'test-textarea',
+      (count) => count > initialCount
+    );
+
+    expect(updatedCount).toBeGreaterThan(initialCount);
   });
 
   test('should inject highlights on contenteditable input', async () => {
@@ -316,26 +335,67 @@ describe('Proofly proofreading', () => {
     );
 
     console.log('Counting highlights');
-    const highlightCount = await page.evaluate(() => {
-      let totalRanges = 0;
-      const errorTypes = [
-        'spelling',
-        'grammar',
-        'punctuation',
-        'capitalization',
-        'preposition',
-        'missing-words',
-      ];
-      for (const errorType of errorTypes) {
-        const highlight = CSS.highlights.get(errorType);
-        if (highlight) {
-          totalRanges += highlight.size;
+    const countHighlights = () =>
+      page.evaluate(() => {
+        let totalRanges = 0;
+        const errorTypes = [
+          'spelling',
+          'grammar',
+          'punctuation',
+          'capitalization',
+          'preposition',
+          'missing-words',
+        ];
+        for (const errorType of errorTypes) {
+          const highlight = CSS.highlights.get(errorType);
+          if (highlight) {
+            totalRanges += highlight.size;
+          }
         }
-      }
-      return totalRanges;
-    });
+        return totalRanges;
+      });
+
+    let highlightCount = await countHighlights();
 
     console.log(`Found ${highlightCount} highlights`);
     expect(highlightCount).toBeGreaterThan(0);
+
+    await page.evaluate(() => {
+      const element = document.getElementById('test-contenteditable-div');
+      if (!element) return;
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      range.collapse(false);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
+    await page.type('#test-contenteditable-div', ' even more errror text');
+
+    await page.waitForFunction(
+      (previousCount) => {
+        let totalRanges = 0;
+        const errorTypes = [
+          'spelling',
+          'grammar',
+          'punctuation',
+          'capitalization',
+          'preposition',
+          'missing-words',
+        ];
+        for (const errorType of errorTypes) {
+          const highlight = CSS.highlights.get(errorType);
+          if (highlight) {
+            totalRanges += highlight.size;
+          }
+        }
+        return totalRanges > previousCount;
+      },
+      { timeout: 10000 },
+      highlightCount
+    );
+
+    const updatedHighlightCount = await countHighlights();
+    expect(updatedHighlightCount).toBeGreaterThan(highlightCount);
   });
 });

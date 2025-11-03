@@ -145,6 +145,42 @@ export async function clickHighlightDetail(
   );
 }
 
+interface HighlightWaitOptions {
+  timeout?: number;
+  interval?: number;
+}
+
+export async function waitForHighlightCount(
+  page: Page,
+  fieldId: string,
+  predicate: (count: number) => boolean,
+  options: HighlightWaitOptions = {}
+): Promise<number> {
+  const timeout = options.timeout ?? 10000;
+  const interval = options.interval ?? 200;
+  const deadline = Date.now() + timeout;
+
+  while (Date.now() < deadline) {
+    const highlights = await collectHighlightDetails(page, fieldId);
+    if (predicate(highlights.length)) {
+      return highlights.length;
+    }
+    await new Promise((resolve) => setTimeout(resolve, interval));
+  }
+
+  throw new Error(`Highlight count did not satisfy predicate for ${fieldId}`);
+}
+
+export async function hasMirrorOverlay(page: Page): Promise<boolean> {
+  return page.evaluate(() => {
+    const highlighter = document.querySelector('proofly-highlighter');
+    if (!highlighter?.shadowRoot) return false;
+
+    const mirror = highlighter.shadowRoot.querySelector('#mirror');
+    return !!mirror;
+  });
+}
+
 export async function waitForPopoverOpen(page: Page, timeout = 10000): Promise<void> {
   await page.waitForFunction(
     () => {

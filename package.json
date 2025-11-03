@@ -11,7 +11,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md,html}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md,html}\"",
     "test": "vitest run",
-    "test:watch": "TEST_WATCH_MODE=true vitest"
+    "test:watch": "TEST_WATCH_MODE=true vitest",
+    "typecheck": "tsc"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.0.3",

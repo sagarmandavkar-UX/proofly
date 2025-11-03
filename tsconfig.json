@@ -7,9 +7,6 @@
     "baseUrl": ".",
     "module": "esnext",
     "moduleResolution": "bundler",
-    "paths": {
-      "~/*": ["src/*"]
-    },
     "types": [
       "vite/client",
       "chrome",
@@ -27,5 +24,5 @@
     "skipLibCheck": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  "include": ["src", "tests"]
 }
