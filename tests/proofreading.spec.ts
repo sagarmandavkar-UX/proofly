@@ -64,7 +64,7 @@ describe('Proofly proofreading', () => {
     });
 
     console.log('Waiting for proofly-highlighter to appear...');
-    await page.waitForSelector('proofly-highlighter', { timeout: 10000 });
+    await waitForHighlightCount(page, 'test-input', (count) => count > 0);
 
     console.log('Checking for mirror in shadow DOM');
 
@@ -72,9 +72,25 @@ describe('Proofly proofreading', () => {
     console.log(`Mirror overlay present: ${mirrorOverlay}`);
     expect(mirrorOverlay).toBe(true);
 
-    const initialCount = await waitForHighlightCount(page, 'test-input', (count) => count > 0);
+    const highlightCount = await waitForHighlightCount(page, 'test-input', (count) => count > 0);
 
-    // await delay(1000);
+    expect(highlightCount).toBeGreaterThan(0);
+  });
+
+  test('should append new text to input field and update highlights', async () => {
+    await page.goto('http://localhost:8080/test.html', { waitUntil: 'networkidle0' });
+
+    await page.waitForSelector('#test-input', { timeout: 10000 });
+    await page.focus('#test-input');
+
+    await page.evaluate(() => {
+      const element = document.getElementById('test-input') as HTMLInputElement;
+      if (element) {
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
+
+    const initialCount = await waitForHighlightCount(page, 'test-input', (count) => count > 0);
 
     await page.click('#test-input');
     await page.keyboard.press('ArrowRight');
@@ -109,7 +125,7 @@ describe('Proofly proofreading', () => {
       }
     });
 
-    await page.waitForSelector('proofly-highlighter', { timeout: 10000 });
+    await waitForHighlightCount(page, 'test-input', (count) => count > 0);
 
     const highlights = await collectHighlightDetails(page, 'test-input');
     expect(highlights.length).toBeGreaterThan(0);
@@ -213,8 +229,6 @@ describe('Proofly proofreading', () => {
       element.dispatchEvent(new Event('input', { bubbles: true }));
     });
 
-    await page.waitForSelector('proofly-highlighter', { timeout: 10000 });
-
     const highlightCount = await waitForHighlightCount(page, 'test-input', (count) => count > 0);
     expect(highlightCount).toBeGreaterThan(0);
   });
@@ -233,8 +247,6 @@ describe('Proofly proofreading', () => {
         element.dispatchEvent(new Event('input', { bubbles: true }));
       }
     });
-
-    await page.waitForSelector('proofly-highlighter', { timeout: 10000 });
 
     let remaining = await waitForHighlightCount(page, 'test-input', (count) => count > 0);
 
@@ -297,7 +309,7 @@ describe('Proofly proofreading', () => {
       }
     });
 
-    await page.waitForSelector('proofly-highlighter', { timeout: 10000 });
+    await waitForHighlightCount(page, 'test-input', (count) => count > 0);
 
     const highlights = await collectHighlightDetails(page, 'test-input');
     expect(highlights.length).toBeGreaterThan(0);
@@ -357,12 +369,30 @@ describe('Proofly proofreading', () => {
     });
 
     console.log('Waiting for proofly-highlighter to appear...');
-    await page.waitForSelector('proofly-highlighter', { timeout: 10000 });
+    await waitForHighlightCount(page, 'test-textarea', (count) => count > 0);
 
     console.log('Checking for mirror in shadow DOM');
     const mirrorOverlay = await hasMirrorOverlay(page);
     console.log(`Mirror overlay present: ${mirrorOverlay}`);
     expect(mirrorOverlay).toBe(true);
+
+    const highlightCount = await waitForHighlightCount(page, 'test-textarea', (count) => count > 0);
+
+    expect(highlightCount).toBeGreaterThan(0);
+  });
+
+  test('should append new text to textarea field and update highlights', async () => {
+    await page.goto('http://localhost:8080/test.html', { waitUntil: 'networkidle0' });
+
+    await page.waitForSelector('#test-textarea', { timeout: 10000 });
+    await page.focus('#test-textarea');
+
+    await page.evaluate(() => {
+      const element = document.getElementById('test-textarea') as HTMLTextAreaElement;
+      if (element) {
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
 
     const initialCount = await waitForHighlightCount(page, 'test-textarea', (count) => count > 0);
 
@@ -390,8 +420,6 @@ describe('Proofly proofreading', () => {
       element.value = 'Wrong sentences are heree';
       element.dispatchEvent(new Event('input', { bubbles: true }));
     });
-
-    await page.waitForSelector('proofly-highlighter', { timeout: 10000 });
 
     const highlightCount = await waitForHighlightCount(page, 'test-textarea', (count) => count > 0);
     expect(highlightCount).toBeGreaterThan(0);
@@ -433,10 +461,53 @@ describe('Proofly proofreading', () => {
     );
 
     console.log('Counting highlights');
-    let highlightCount = await countContentEditableHighlights(page, 'test-contenteditable-div');
+    const highlightCount = await countContentEditableHighlights(page, 'test-contenteditable-div');
 
     console.log(`Found ${highlightCount} highlights`);
     expect(highlightCount).toBeGreaterThan(0);
+  });
+
+  test('should append new text to contenteditable input and update highlights', async () => {
+    await page.goto('http://localhost:8080/test.html', { waitUntil: 'networkidle0' });
+
+    console.log('Focusing contenteditable div and triggering input event');
+    await page.waitForSelector('#test-contenteditable-div', { timeout: 10000 });
+    await page.focus('#test-contenteditable-div');
+
+    await page.evaluate(() => {
+      const element = document.getElementById('test-contenteditable-div');
+      if (element) {
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
+
+    console.log('Waiting for highlights to be injected...');
+    await page.waitForFunction(
+      () => {
+        if (!('highlights' in CSS)) return false;
+        const errorTypes = [
+          'spelling',
+          'grammar',
+          'punctuation',
+          'capitalization',
+          'preposition',
+          'missing-words',
+        ];
+        for (const errorType of errorTypes) {
+          const highlight = CSS.highlights.get(errorType);
+          if (highlight && highlight.size > 0) {
+            return true;
+          }
+        }
+        return false;
+      },
+      { timeout: 10000 }
+    );
+
+    console.log('Counting highlights');
+    const initialCount = await countContentEditableHighlights(page, 'test-contenteditable-div');
+    console.log(`Found ${initialCount} highlights`);
+    expect(initialCount).toBeGreaterThan(0);
 
     await page.evaluate(() => {
       const element = document.getElementById('test-contenteditable-div');
@@ -448,14 +519,16 @@ describe('Proofly proofreading', () => {
       selection?.removeAllRanges();
       selection?.addRange(range);
     });
+
     await page.type('#test-contenteditable-div', ' even more errror text');
 
     const updatedHighlightCount = await waitForContentEditableHighlightCount(
       page,
       'test-contenteditable-div',
-      (count) => count > highlightCount
+      (count) => count > initialCount
     );
-    expect(updatedHighlightCount).toBeGreaterThan(highlightCount);
+
+    expect(updatedHighlightCount).toBeGreaterThan(initialCount);
   });
 
   test('should detect highlights after resetting contenteditable field', async () => {

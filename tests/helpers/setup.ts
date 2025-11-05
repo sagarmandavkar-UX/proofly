@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { spawn } from 'node:child_process';
 import { beforeAll, afterAll } from 'vitest';
 import { resetExtensionStorage } from './fixtures';
+import { writeExtensionLogsToFile } from './log-writer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -138,6 +139,16 @@ beforeAll(async () => {
 
 afterAll(async () => {
   const watchMode = isWatchMode();
+
+  if (globalBrowser) {
+    try {
+      await writeExtensionLogsToFile(globalBrowser, EXTENSION_ID, {
+        targetUrl: 'http://localhost:8080/test.html',
+      });
+    } catch (error) {
+      console.log('⚠️  Failed to write extension logs:', error);
+    }
+  }
 
   if (watchMode) {
     console.log('⏸️  Watch mode - keeping browser open for inspection');
