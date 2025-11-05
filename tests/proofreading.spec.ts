@@ -292,7 +292,7 @@ describe('Proofly proofreading', () => {
       await clickHighlightDetail(page, targetHighlight);
       await waitForPopoverOpen(page);
 
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await delay(300);
 
       await page.evaluate(() => {
         const popover = document.querySelector('proofly-correction-popover');

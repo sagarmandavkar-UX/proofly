@@ -1,6 +1,7 @@
 import { STORAGE_KEYS } from '../shared/constants.ts';
 import { initializeStorage, onStorageChange } from '../shared/utils/storage.ts';
 import { logger } from '../services/logger.ts';
+
 import type {
   IssuesUpdatePayload,
   IssuesUpdateMessage,
@@ -9,58 +10,88 @@ import type {
   ProoflyMessage,
   ProofreaderStateMessage,
 } from '../shared/messages/issues.ts';
+import { serializeError } from '../shared/utils/serialize.ts';
 
 let badgeListenersRegistered = false;
 let currentBadgeState: 'ready' | 'clear' | 'count' | null = null;
-const issuesByTab = new Map<number, IssuesUpdatePayload>();
+interface TabIssuesState {
+  payload: IssuesUpdatePayload | null;
+  revision: number;
+}
+
+const issuesByTab = new Map<number, TabIssuesState>();
 const busyTabs = new Set<number>();
 const BUSY_BADGE_COLOR = '#facc15';
 const BUSY_TEXT_COLOR = '#000000';
+const DEFAULT_BADGE_COLOR = '#dc2626';
 const DEFAULT_TEXT_COLOR = '#ffffff';
+const CLEAR_BADGE_COLOR = 'transparent';
 
 function applyBusyBadge(tabId: number, text: string): void {
   chrome.action
     .setBadgeBackgroundColor({ color: BUSY_BADGE_COLOR, tabId })
-    .catch((error) => logger.warn({ error, tabId }, 'Failed to set busy badge color'));
+    .catch((error) =>
+      logger.warn({ error: serializeError(error), tabId }, 'Failed to set busy badge color')
+    );
 
   if ('setBadgeTextColor' in chrome.action) {
     chrome.action
       .setBadgeTextColor({ color: BUSY_TEXT_COLOR, tabId })
-      .catch((error) => logger.warn({ error, tabId }, 'Failed to set busy badge text color'));
+      .catch((error) =>
+        logger.warn({ error: serializeError(error), tabId }, 'Failed to set busy badge text color')
+      );
   }
 
   chrome.action
     .setBadgeText({ text, tabId })
-    .catch((error) => logger.warn({ error, tabId }, 'Failed to set busy badge text'));
+    .catch((error) =>
+      logger.warn({ error: serializeError(error), tabId }, 'Failed to set busy badge text')
+    );
 }
 
-function countIssues(payload: IssuesUpdatePayload | null | undefined): number {
-  if (!payload) {
+function countIssues(state: TabIssuesState | null | undefined): number {
+  if (!state?.payload) {
     return 0;
   }
-  return payload.elements.reduce((total, group) => total + group.issues.length, 0);
+  return state.payload.elements.reduce((total, group) => total + group.issues.length, 0);
 }
 
 async function updateBadgeForIssues(
   tabId: number,
-  payload: IssuesUpdatePayload | null
+  payloadState: TabIssuesState | null
 ): Promise<void> {
-  const totalIssues = countIssues(payload);
+  const totalIssues = countIssues(payloadState);
+  logger.info(
+    { tabId, totalIssues, revision: payloadState?.revision ?? null },
+    'Updating badge for issues'
+  );
+  try {
+    await chrome.storage.local.set({
+      __debug_last_badge_state: { tabId, totalIssues, updatedAt: Date.now() },
+    });
+  } catch (error) {
+    logger.warn({ error: serializeError(error), tabId }, 'Failed to persist debug badge state');
+  }
   const busyText = totalIssues > 0 ? (totalIssues > 99 ? '99+' : String(totalIssues)) : ' ';
   const idleText = totalIssues > 0 ? (totalIssues > 99 ? '99+' : String(totalIssues)) : '';
 
   if (busyTabs.has(tabId)) {
     await chrome.action
       .setBadgeText({ text: busyText, tabId })
-      .catch((error) => logger.warn({ error, tabId }, 'Failed to update badge text while busy'));
+      .catch((error) =>
+        logger.warn(
+          { error: serializeError(error), tabId },
+          'Failed to update badge text while busy'
+        )
+      );
     return;
   }
 
   if (totalIssues > 0) {
-    await chrome.action.setBadgeBackgroundColor({ color: '#dc2626', tabId });
+    await chrome.action.setBadgeBackgroundColor({ color: DEFAULT_BADGE_COLOR, tabId });
     if ('setBadgeTextColor' in chrome.action) {
       await chrome.action.setBadgeTextColor({ color: DEFAULT_TEXT_COLOR, tabId }).catch((error) => {
-        logger.warn({ error, tabId }, 'Failed to restore badge text color');
+        logger.warn({ error: serializeError(error), tabId }, 'Failed to restore badge text color');
       });
     }
     await chrome.action.setBadgeText({ text: idleText, tabId });
@@ -69,8 +100,15 @@ async function updateBadgeForIssues(
   }
 
   await chrome.action
+    .setBadgeBackgroundColor({ color: CLEAR_BADGE_COLOR, tabId })
+    .catch((error) =>
+      logger.warn({ error: serializeError(error), tabId }, 'Failed to set clear badge background')
+    );
+  await chrome.action
     .setBadgeText({ text: '', tabId })
-    .catch((error) => logger.warn({ error, tabId }, 'Failed to clear badge text'));
+    .catch((error) =>
+      logger.warn({ error: serializeError(error), tabId }, 'Failed to set empty badge text')
+    );
   currentBadgeState = 'clear';
 }
 
@@ -83,9 +121,36 @@ function handleIssuesUpdate(
     return;
   }
 
-  issuesByTab.set(tabId, structuredClone(message.payload));
-  void updateBadgeForIssues(tabId, message.payload).catch((error) => {
-    logger.error({ error, tabId }, 'Failed to update badge for issues');
+  const tabUrl = sender.tab?.url ?? '';
+  if (tabUrl.startsWith('chrome-extension://')) {
+    logger.info({ tabId, tabUrl }, 'Ignoring issues update from extension page');
+    return;
+  }
+
+  const incomingRevision = message.payload.revision ?? 0;
+  const existingState = issuesByTab.get(tabId);
+  const currentRevision = existingState?.revision ?? 0;
+
+  if (incomingRevision < currentRevision) {
+    logger.info(
+      { tabId, incomingRevision, currentRevision },
+      'Ignoring out-of-order issues update'
+    );
+    return;
+  }
+
+  const clonedPayload = structuredClone(message.payload);
+  const state: TabIssuesState = { payload: clonedPayload, revision: incomingRevision };
+  issuesByTab.set(tabId, state);
+
+  try {
+    chrome.storage.local.set({ __debug_last_payload: clonedPayload });
+  } catch (error) {
+    logger.warn({ error: serializeError(error), tabId }, 'Failed to store debug payload');
+  }
+
+  void updateBadgeForIssues(tabId, state).catch((error) => {
+    logger.error({ error: serializeError(error), tabId }, 'Failed to update badge for issues');
   });
 }
 
@@ -93,8 +158,8 @@ function handleIssuesStateRequest(
   message: IssuesStateRequestMessage,
   sendResponse: (response: IssuesStateResponseMessage) => void
 ): void {
-  const payload = issuesByTab.get(message.payload.tabId) ?? null;
-  sendResponse({ type: 'proofly:issues-state', payload });
+  const state = issuesByTab.get(message.payload.tabId) ?? null;
+  sendResponse({ type: 'proofly:issues-state', payload: state?.payload ?? null });
 }
 
 function handleProofreaderStateMessage(
@@ -106,17 +171,23 @@ function handleProofreaderStateMessage(
     return;
   }
 
+  const tabUrl = sender.tab?.url ?? '';
+  if (tabUrl.startsWith('chrome-extension://')) {
+    logger.info({ tabId, tabUrl }, 'Ignoring proofreader state from extension page');
+    return;
+  }
+
   if (message.payload.busy) {
     busyTabs.add(tabId);
-    const payload = issuesByTab.get(tabId) ?? null;
-    const totalIssues = countIssues(payload);
+    const state = issuesByTab.get(tabId) ?? null;
+    const totalIssues = countIssues(state);
     const text = totalIssues > 0 ? (totalIssues > 99 ? '99+' : String(totalIssues)) : ' ';
 
     applyBusyBadge(tabId, text);
     setTimeout(() => {
       if (busyTabs.has(tabId)) {
-        const latestPayload = issuesByTab.get(tabId) ?? null;
-        const latestTotal = countIssues(latestPayload);
+        const latestState = issuesByTab.get(tabId) ?? null;
+        const latestTotal = countIssues(latestState);
         const latestText = latestTotal > 0 ? (latestTotal > 99 ? '99+' : String(latestTotal)) : ' ';
         applyBusyBadge(tabId, latestText);
       }
@@ -130,15 +201,15 @@ function handleProofreaderStateMessage(
   }
 
   busyTabs.delete(tabId);
-  const payload = issuesByTab.get(tabId) ?? null;
 
   void chrome.runtime.sendMessage({
     type: 'proofly:proofreader-state-update',
     payload: { tabId, busy: false },
   });
 
-  void updateBadgeForIssues(tabId, payload).catch((error) => {
-    logger.error({ error, tabId }, 'Failed to restore badge after proofreader idle');
+  const latestState = issuesByTab.get(tabId) ?? null;
+  void updateBadgeForIssues(tabId, latestState).catch((error) => {
+    logger.error({ error: serializeError(error), tabId }, 'Failed to refresh badge after idle');
   });
 }
 
@@ -152,8 +223,7 @@ async function updateActionBadge(): Promise<void> {
     logger.info('Extension badge cleared');
     currentBadgeState = 'clear';
   } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    logger.error({ err }, 'Failed to update badge');
+    logger.error({ error: serializeError(error) }, 'Failed to update badge');
   }
 }
 
@@ -229,6 +299,17 @@ chrome.runtime.onMessage.addListener((message: ProoflyMessage, sender, sendRespo
     return true;
   }
 
+  if (message.type === 'proofly:clear-badge') {
+    const tabId = sender.tab?.id;
+    if (typeof tabId === 'number') {
+      void chrome.action.setBadgeText({ text: ' ', tabId }).catch((error) => {
+        logger.warn({ error: serializeError(error), tabId }, 'Failed to clear badge via request');
+      });
+      currentBadgeState = 'clear';
+    }
+    return false;
+  }
+
   return false;
 });
 
@@ -236,7 +317,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   issuesByTab.delete(tabId);
   busyTabs.delete(tabId);
   void updateBadgeForIssues(tabId, null).catch((error) => {
-    logger.error({ error, tabId }, 'Failed to reset badge on tab removal');
+    logger.error({ error: serializeError(error), tabId }, 'Failed to reset badge on tab removal');
   });
 });
 
@@ -245,7 +326,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
     issuesByTab.delete(tabId);
     busyTabs.delete(tabId);
     void updateBadgeForIssues(tabId, null).catch((error) => {
-      logger.error({ error, tabId }, 'Failed to reset badge on navigation');
+      logger.error({ error: serializeError(error), tabId }, 'Failed to reset badge on navigation');
     });
   }
 });

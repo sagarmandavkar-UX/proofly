@@ -63,6 +63,7 @@ export class ProofreadingManager {
   private readonly elementCorrections = new Map<HTMLElement, ProofreadCorrection[]>();
   private lastProofreaderBusy = false;
   private pendingIssuesUpdate = false;
+  private issuesRevision = 0;
   private controller = createProofreadingController({
     runProofread: (element, text) => this.runProofread(element, text),
     filterCorrections: (_element, corrections, text) => this.filterCorrections(corrections, text),
@@ -280,7 +281,7 @@ export class ProofreadingManager {
         },
         onInvalidateIssues: () => {
           if (!this.controller.isRestoringFromHistory(element)) {
-            this.clearSessionHighlights(element);
+            this.clearSessionHighlights(element, { silent: true });
           }
         },
       });
@@ -313,10 +314,26 @@ export class ProofreadingManager {
     session.setIssues(issues);
   }
 
-  private clearSessionHighlights(element: HTMLTextAreaElement | HTMLInputElement): void {
+  private clearSessionHighlights(
+    element: HTMLTextAreaElement | HTMLInputElement,
+    options: { silent?: boolean } = {}
+  ): void {
     const session = this.elementSessions.get(element);
     session?.setIssues([]);
     session?.clearActiveIssue();
+    const hadCorrections = this.elementCorrections.has(element);
+    if (options.silent) {
+      if (this.activeSessionElement === element) {
+        this.activeSessionElement = null;
+      }
+      if (hadCorrections) {
+        this.elementIssueLookup.delete(element);
+        this.elementCorrections.delete(element);
+        this.scheduleIssuesUpdate(true);
+      }
+      return;
+    }
+
     this.elementIssueLookup.delete(element);
     this.elementCorrections.delete(element);
     if (this.activeSessionElement === element) {
@@ -372,7 +389,7 @@ export class ProofreadingManager {
   private handleCorrectionsChange(element: HTMLElement, corrections: ProofreadCorrection[]): void {
     this.storeElementCorrections(element, corrections);
     this.updateElementCorrectionLookup(element, corrections);
-    this.scheduleIssuesUpdate();
+    this.scheduleIssuesUpdate(corrections.length === 0);
   }
 
   private reportProofreaderBusy(busy: boolean): void {
@@ -445,6 +462,10 @@ export class ProofreadingManager {
     for (const [element, corrections] of entries) {
       const text = this.getElementText(element);
       const elementId = this.getElementId(element);
+      logger.info(
+        { elementId, label: normalizeIssueLabel(element), text },
+        'Building issues entry'
+      );
 
       const issues = corrections
         .filter((correction) => correction.endIndex > correction.startIndex)
@@ -478,7 +499,14 @@ export class ProofreadingManager {
       activeElementLabel,
       activeElementKind,
       elements,
+      revision: ++this.issuesRevision,
     };
+
+    const issueTotal = elements.reduce((count, group) => count + group.issues.length, 0);
+    logger.info(
+      { issueTotal, revision: this.issuesRevision, elementGroups: elements.length },
+      'Emitting issues update'
+    );
 
     const message: IssuesUpdateMessage = {
       type: 'proofly:issues-update',
@@ -488,6 +516,12 @@ export class ProofreadingManager {
     void chrome.runtime.sendMessage(message).catch((error) => {
       logger.warn({ error }, 'Failed to broadcast issues update');
     });
+
+    if (elements.length === 0) {
+      void chrome.runtime.sendMessage({ type: 'proofly:clear-badge' }).catch((error) => {
+        logger.warn({ error }, 'Failed to request badge clear');
+      });
+    }
   }
 
   private extractOriginalText(text: string, correction: ProofreadCorrection): string {
@@ -751,7 +785,16 @@ export class ProofreadingManager {
     this.elementSessions.forEach((session) => session.setAutofixOnDoubleClick(enabled));
   }
 
-  private scheduleIssuesUpdate(): void {
+  private scheduleIssuesUpdate(flushImmediately = false): void {
+    logger.info(
+      { flushImmediately, pending: this.pendingIssuesUpdate },
+      'Scheduling issues update'
+    );
+    if (flushImmediately) {
+      this.pendingIssuesUpdate = false;
+      this.emitIssuesUpdate();
+      return;
+    }
     if (this.pendingIssuesUpdate) {
       return;
     }

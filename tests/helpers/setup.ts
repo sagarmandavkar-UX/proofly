@@ -77,7 +77,6 @@ beforeAll(async () => {
     '--no-first-run',
     `--user-data-dir=${userDataDir}`,
     '--hide-crash-restore-bubble',
-    '--disable-session-crashed-bubble',
   ];
 
   if (watchMode) {

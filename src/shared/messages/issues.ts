@@ -27,6 +27,7 @@ export interface IssuesUpdatePayload {
   activeElementLabel: string | null;
   activeElementKind: IssueElementKind | null;
   elements: IssueElementGroup[];
+  revision?: number;
 }
 
 export interface IssuesUpdateMessage {
@@ -73,6 +74,10 @@ export interface IssuesStateResponseMessage {
   payload: IssuesUpdatePayload | null;
 }
 
+export interface ClearBadgeMessage {
+  type: 'proofly:clear-badge';
+}
+
 export type ProoflyMessage =
   | IssuesUpdateMessage
   | ApplyIssueMessage
@@ -80,7 +85,8 @@ export type ProoflyMessage =
   | ProofreaderStateMessage
   | ProofreaderStateUpdateMessage
   | IssuesStateRequestMessage
-  | IssuesStateResponseMessage;
+  | IssuesStateResponseMessage
+  | ClearBadgeMessage;
 
 export function toSidepanelIssue(
   elementId: string,
