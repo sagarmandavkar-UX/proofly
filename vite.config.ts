@@ -1,9 +1,22 @@
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import { crx } from '@crxjs/vite-plugin';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import zip from 'vite-plugin-zip-pack';
 import manifest from './manifest.config.js';
 import { name, version } from './package.json';
+
+function removeViteMetadata(outDir: string): Plugin {
+  return {
+    name: 'remove-vite-metadata',
+    closeBundle: async () => {
+      await fs.rm(path.resolve(__dirname, outDir, '.vite'), {
+        recursive: true,
+        force: true,
+      });
+    },
+  };
+}
 
 export default defineConfig(({ command }) => ({
   resolve: {
@@ -21,6 +34,7 @@ export default defineConfig(({ command }) => ({
       outDir: 'release',
       outFileName: `crx-${name.toLowerCase()}-${version}.zip`,
     }),
+    ...(command === 'build' ? [removeViteMetadata('dist')] : []),
   ],
   server: {
     cors: {
