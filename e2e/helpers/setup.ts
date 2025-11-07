@@ -95,7 +95,7 @@ beforeAll(async () => {
       const chromeArgs = [...chromeLaunchArgs, `--remote-debugging-port=${debugPort}`];
 
       const chromeProcess = spawn(
-        '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
+        '/Applications/Google Chrome Dev.app/Contents/MacOS/Google Chrome Dev',
         chromeArgs,
         {
           detached: true,
@@ -117,13 +117,13 @@ beforeAll(async () => {
     }
   } else {
     globalBrowser = await puppeteer.launch({
-      channel: 'chrome-canary',
+      channel: 'chrome-dev',
       headless: false,
       ignoreDefaultArgs: true,
       args: chromeLaunchArgs,
     });
 
-    console.log('✅ Browser launched successfully with Chrome Canary');
+    console.log('✅ Browser launched successfully');
   }
 
   if (globalBrowser) {

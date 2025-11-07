@@ -23,7 +23,12 @@ import {
   type CorrectionColorThemeMap,
   type CorrectionTypeKey,
 } from '../shared/utils/correction-types.ts';
-import { createProofreadingController } from '../shared/proofreading/controller.ts';
+import {
+  createProofreadingController,
+  type ProofreadLifecycleInternalEvent,
+  type ProofreadRunContext,
+} from '../shared/proofreading/controller.ts';
+import { shouldMirrorOnElement, shouldProofread } from '../shared/proofreading/target-selectors.ts';
 import type { ProofreadingTargetHooks } from '../shared/proofreading/types.ts';
 import type { ProofreadCorrection, ProofreadResult, UnderlineStyle } from '../shared/types.ts';
 import {
@@ -40,6 +45,10 @@ import {
   type IssuesUpdateMessage,
   type IssuesUpdatePayload,
 } from '../shared/messages/issues.ts';
+import {
+  emitProofreadControlEvent,
+  type ProofreadLifecycleReason,
+} from '../shared/proofreading/control-events.ts';
 
 export class ProofreadingManager {
   private readonly highlighter = new ContentHighlighter();
@@ -65,10 +74,11 @@ export class ProofreadingManager {
   private pendingIssuesUpdate = false;
   private issuesRevision = 0;
   private controller = createProofreadingController({
-    runProofread: (element, text) => this.runProofread(element, text),
+    runProofread: (element, text, context) => this.runProofread(element, text, context),
     filterCorrections: (_element, corrections, text) => this.filterCorrections(corrections, text),
     debounceMs: 1000,
     getElementText: (element) => this.getElementText(element),
+    onLifecycleEvent: (event) => this.handleProofreadLifecycle(event),
   });
   private languageDetectionService: ReturnType<typeof createLanguageDetectionService> | null = null;
   private enabledCorrectionTypes = new Set<CorrectionTypeKey>();
@@ -144,12 +154,16 @@ export class ProofreadingManager {
 
   private observeEditableElements(): void {
     const handleInput = (event: Event) => {
-      const target = event.target as HTMLElement;
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
       if (!this.isEditableElement(target)) {
+        this.reportIgnoredElement(target, 'unsupported-target');
         return;
       }
       this.registerElement(target);
-      if (this.isTextareaOrInput(target)) {
+      if (shouldMirrorOnElement(target)) {
         return;
       }
       if (this.shouldAutoProofread()) {
@@ -214,7 +228,7 @@ export class ProofreadingManager {
     const hooks = this.createTargetHooks(element);
     this.controller.registerTarget({ element, hooks });
 
-    if (this.isTextareaOrInput(element)) {
+    if (shouldMirrorOnElement(element)) {
       this.ensureTargetSession(element as HTMLTextAreaElement | HTMLInputElement);
     } else {
       this.setupContentEditableCallbacks(element);
@@ -222,7 +236,7 @@ export class ProofreadingManager {
   }
 
   private createTargetHooks(element: HTMLElement): ProofreadingTargetHooks {
-    if (this.isTextareaOrInput(element)) {
+    if (shouldMirrorOnElement(element)) {
       return {
         highlight: (corrections) => {
           this.highlightWithSession(element as HTMLTextAreaElement | HTMLInputElement, corrections);
@@ -626,7 +640,11 @@ export class ProofreadingManager {
     return null;
   }
 
-  private async runProofread(_element: HTMLElement, text: string): Promise<ProofreadResult | null> {
+  private async runProofread(
+    element: HTMLElement,
+    text: string,
+    context: ProofreadRunContext
+  ): Promise<ProofreadResult | null> {
     return this.proofreadQueue.enqueue(async () => {
       let detectedLanguage: string | null = null;
 
@@ -640,6 +658,14 @@ export class ProofreadingManager {
       }
 
       const language = detectedLanguage || 'en';
+      this.handleProofreadLifecycle({
+        status: 'language-detected',
+        element,
+        executionId: context.executionId,
+        textLength: text.length,
+        language: detectedLanguage,
+        fallbackLanguage: language,
+      });
       const service = await this.getOrCreateProofreaderService(language);
       if (!service.canProofread(text)) {
         return null;
@@ -906,30 +932,55 @@ export class ProofreadingManager {
   }
 
   private isEditableElement(element: HTMLElement): boolean {
-    const tagName = element.tagName.toLowerCase();
-
-    if (tagName === 'textarea') {
-      return true;
-    }
-
-    if (tagName === 'input') {
-      const inputType = (element as HTMLInputElement).type;
-      return !inputType || ['text', 'email', 'search', 'url'].includes(inputType);
-    }
-
-    return element.isContentEditable || element.hasAttribute('contenteditable');
-  }
-
-  private isTextareaOrInput(
-    element: HTMLElement
-  ): element is HTMLTextAreaElement | HTMLInputElement {
-    const tagName = element.tagName.toLowerCase();
-    return tagName === 'textarea' || tagName === 'input';
+    return shouldProofread(element);
   }
 
   private getElementText(element: HTMLElement): string {
-    if (this.isTextareaOrInput(element)) {
+    if (shouldMirrorOnElement(element)) {
       return (element as HTMLTextAreaElement | HTMLInputElement).value;
+    }
+    return element.textContent || '';
+  }
+
+  private reportIgnoredElement(element: HTMLElement, reason: ProofreadLifecycleReason): void {
+    this.handleProofreadLifecycle({
+      status: 'ignored',
+      element,
+      executionId: crypto.randomUUID(),
+      textLength: this.getElementSnapshotText(element).length,
+      reason,
+    });
+  }
+
+  private handleProofreadLifecycle(event: ProofreadLifecycleInternalEvent): void {
+    if (event.status === 'queued') {
+      event.queueLength = this.proofreadQueue.size();
+    }
+
+    const elementId = this.getElementId(event.element);
+    const elementKind = resolveElementKind(event.element);
+    emitProofreadControlEvent({
+      status: event.status,
+      executionId: event.executionId,
+      elementId,
+      elementKind,
+      textLength: event.textLength,
+      correctionCount: event.correctionCount,
+      detectedIssueCount: event.detectedIssueCount,
+      reason: event.reason,
+      error: event.error,
+      queueLength: event.queueLength,
+      debounceMs: event.debounceMs,
+      forced: event.forced,
+      language: event.language,
+      fallbackLanguage: event.fallbackLanguage,
+      timestamp: Date.now(),
+    });
+  }
+
+  private getElementSnapshotText(element: HTMLElement): string {
+    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+      return element.value;
     }
     return element.textContent || '';
   }

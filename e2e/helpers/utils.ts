@@ -301,3 +301,28 @@ export async function waitForPopoverClosed(page: Page, timeout = 5000): Promise<
 export async function delay(millis: number) {
   return new Promise((resolve) => setTimeout(resolve, millis));
 }
+
+export async function getImmediateHighlightCount(page: Page, fieldId: string): Promise<number> {
+  return page.evaluate((id, tolerance = 5) => {
+    const field = document.getElementById(id);
+    if (!(field instanceof HTMLElement)) {
+      return 0;
+    }
+
+    const fieldRect = field.getBoundingClientRect();
+    const hosts = Array.from(document.querySelectorAll('proofly-highlighter'));
+    const hostForField = hosts.find((host) => {
+      const rect = host.getBoundingClientRect();
+      return (
+        Math.abs(rect.left - fieldRect.left) <= tolerance &&
+        Math.abs(rect.top - fieldRect.top) <= tolerance
+      );
+    });
+
+    if (!hostForField?.shadowRoot) {
+      return 0;
+    }
+
+    return hostForField.shadowRoot.querySelectorAll('.u').length;
+  }, fieldId);
+}

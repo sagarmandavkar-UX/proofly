@@ -3,9 +3,34 @@ import { undoManager } from '../utils/undo-manager.ts';
 import { replaceTextWithUndo } from '../utils/clipboard.ts';
 import type { ProofreadCorrection, ProofreadResult } from '../types.ts';
 import type { ProofreadingTarget, ProofreadingTargetHooks } from './types.ts';
+import type { ProofreadLifecycleReason, ProofreadLifecycleStatus } from './control-events.ts';
+
+export interface ProofreadLifecycleInternalEvent {
+  status: ProofreadLifecycleStatus;
+  element: HTMLElement;
+  executionId: string;
+  textLength: number;
+  correctionCount?: number;
+  detectedIssueCount?: number;
+  reason?: ProofreadLifecycleReason;
+  error?: string;
+  debounceMs?: number;
+  forced?: boolean;
+  queueLength?: number;
+  language?: string | null;
+  fallbackLanguage?: string;
+}
+
+export interface ProofreadRunContext {
+  executionId: string;
+}
 
 export interface ProofreadingControllerDependencies {
-  runProofread(element: HTMLElement, text: string): Promise<ProofreadResult | null>;
+  runProofread(
+    element: HTMLElement,
+    text: string,
+    context: ProofreadRunContext
+  ): Promise<ProofreadResult | null>;
   filterCorrections(
     element: HTMLElement,
     corrections: ProofreadCorrection[],
@@ -13,6 +38,7 @@ export interface ProofreadingControllerDependencies {
   ): ProofreadCorrection[];
   debounceMs: number;
   getElementText?(element: HTMLElement): string;
+  onLifecycleEvent?(event: ProofreadLifecycleInternalEvent): void;
 }
 
 interface ElementState {
@@ -45,12 +71,14 @@ export class ProofreadingController {
   private readonly filterCorrections: ProofreadingControllerDependencies['filterCorrections'];
   private readonly getElementText: (element: HTMLElement) => string;
   private readonly debounceMs: number;
+  private readonly reportLifecycle?: ProofreadingControllerDependencies['onLifecycleEvent'];
 
   constructor(dependencies: ProofreadingControllerDependencies) {
     this.runProofread = dependencies.runProofread;
     this.filterCorrections = dependencies.filterCorrections;
     this.debounceMs = dependencies.debounceMs;
     this.getElementText = dependencies.getElementText ?? defaultGetElementText;
+    this.reportLifecycle = dependencies.onLifecycleEvent;
   }
 
   registerTarget(target: ProofreadingTarget): void {
@@ -101,9 +129,39 @@ export class ProofreadingController {
 
   scheduleProofread(element: HTMLElement): void {
     const state = this.states.get(element);
-    if (!state || state.isApplyingCorrection || state.isRestoringFromHistory) {
+    if (!state) {
+      this.reportLifecycle?.({
+        status: 'throttled',
+        element,
+        executionId: crypto.randomUUID(),
+        textLength: this.getElementText(element).length,
+        reason: 'missing-state',
+      });
       return;
     }
+
+    if (state.isApplyingCorrection) {
+      this.reportLifecycle?.({
+        status: 'throttled',
+        element,
+        executionId: crypto.randomUUID(),
+        textLength: this.getElementText(element).length,
+        reason: 'applying-correction',
+      });
+      return;
+    }
+
+    if (state.isRestoringFromHistory) {
+      this.reportLifecycle?.({
+        status: 'throttled',
+        element,
+        executionId: crypto.randomUUID(),
+        textLength: this.getElementText(element).length,
+        reason: 'restoring-from-history',
+      });
+      return;
+    }
+
     state.debouncedProofread();
   }
 
@@ -120,9 +178,27 @@ export class ProofreadingController {
     }
 
     const text = this.getElementText(element);
+    const textLength = text.length;
+    const executionId = crypto.randomUUID();
+
+    this.reportLifecycle?.({
+      status: 'queued',
+      element,
+      executionId,
+      textLength,
+      debounceMs: this.debounceMs,
+      forced: Boolean(options.force),
+    });
 
     // Skip proofreading if text hasn't changed and not forced
     if (!options.force && text === state.lastText) {
+      this.reportLifecycle?.({
+        status: 'ignored',
+        element,
+        executionId,
+        textLength,
+        reason: 'unchanged-text',
+      });
       return;
     }
 
@@ -131,6 +207,13 @@ export class ProofreadingController {
     if (trimmed.length === 0) {
       this.applyCorrections(element, []);
       state.lastText = text;
+      this.reportLifecycle?.({
+        status: 'ignored',
+        element,
+        executionId,
+        textLength,
+        reason: 'empty-text',
+      });
       return;
     }
 
@@ -139,31 +222,101 @@ export class ProofreadingController {
       const corrections = Array.isArray(metadata) ? metadata : [];
       this.applyCorrections(element, corrections);
       state.lastText = text;
+      this.reportLifecycle?.({
+        status: 'ignored',
+        element,
+        executionId,
+        textLength,
+        reason: 'restored-from-history',
+      });
       return;
     }
 
+    this.reportLifecycle?.({
+      status: 'start',
+      element,
+      executionId,
+      textLength,
+    });
+
     try {
-      const result = await this.runProofread(element, text);
+      const result = await this.runProofread(element, text, { executionId });
       const currentText = this.getElementText(element);
       if (currentText !== text) {
+        this.reportLifecycle?.({
+          status: 'complete',
+          element,
+          executionId,
+          textLength,
+          detectedIssueCount: 0,
+          correctionCount: 0,
+          error: 'stale-text',
+        });
         return;
       }
 
       if (!result) {
         this.applyCorrections(element, []);
         state.lastText = text;
+        this.reportLifecycle?.({
+          status: 'complete',
+          element,
+          executionId,
+          textLength,
+          detectedIssueCount: 0,
+          correctionCount: 0,
+        });
         return;
       }
 
-      const filtered = this.filterCorrections(element, result.corrections ?? [], text);
+      const rawCorrections = result.corrections ?? [];
+      const filtered = this.filterCorrections(element, rawCorrections, text);
       this.applyCorrections(element, filtered);
       state.lastText = text;
+      this.reportLifecycle?.({
+        status: 'complete',
+        element,
+        executionId,
+        textLength,
+        detectedIssueCount: rawCorrections.length,
+        correctionCount: filtered.length,
+      });
     } catch (error) {
       if ((error as DOMException)?.name !== 'AbortError') {
         this.applyCorrections(element, []);
         state.lastText = text;
+        this.reportLifecycle?.({
+          status: 'error',
+          element,
+          executionId,
+          textLength,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        this.reportLifecycle?.({
+          status: 'complete',
+          element,
+          executionId,
+          textLength,
+          correctionCount: 0,
+          error: error instanceof Error ? error.message : String(error),
+        });
         throw error;
       }
+      this.reportLifecycle?.({
+        status: 'abort',
+        element,
+        executionId,
+        textLength,
+        error: 'abort',
+      });
+      this.reportLifecycle?.({
+        status: 'complete',
+        element,
+        executionId,
+        textLength,
+        correctionCount: 0,
+        error: 'abort',
+      });
     }
   }
 

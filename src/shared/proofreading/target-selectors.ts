@@ -1,0 +1,38 @@
+const TEXT_INPUT_SELECTORS = ['input:not([type])', 'input[type="text"]'] as const;
+const TEXTAREA_SELECTOR = 'textarea';
+const CONTENTEDITABLE_SELECTOR = '[contenteditable]:not([contenteditable="false"])';
+
+export const PROOFREAD_TARGET_SELECTORS = [
+  TEXTAREA_SELECTOR,
+  ...TEXT_INPUT_SELECTORS,
+  CONTENTEDITABLE_SELECTOR,
+] as const;
+
+const TEXT_INPUT_SELECTOR = TEXT_INPUT_SELECTORS.join(', ');
+const TARGET_SELECTOR = PROOFREAD_TARGET_SELECTORS.join(', ');
+
+export function shouldProofread(element: Element): element is HTMLElement {
+  if (!(element instanceof HTMLElement)) {
+    return false;
+  }
+
+  if (element.matches(TARGET_SELECTOR)) {
+    return true;
+  }
+
+  return element.isContentEditable;
+}
+
+export function shouldMirrorOnElement(
+  element: Element
+): element is HTMLTextAreaElement | HTMLInputElement {
+  if (element instanceof HTMLTextAreaElement) {
+    return true;
+  }
+
+  return isTextInput(element);
+}
+
+export function isTextInput(element: Element): element is HTMLInputElement {
+  return element instanceof HTMLInputElement && element.matches(TEXT_INPUT_SELECTOR);
+}

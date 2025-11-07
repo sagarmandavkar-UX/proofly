@@ -42,7 +42,7 @@ export async function writeExtensionLogsToFile(
   options: LogWriterOptions = {}
 ): Promise<void> {
   const params: FetchLogParams = { ...DEFAULT_FETCH_PARAMS, ...options };
-  const outputPath = path.join(process.cwd(), '/tests/logs.txt');
+  const outputPath = path.join(process.cwd(), '/e2e/logs.txt');
 
   const pages = await browser.pages();
   const originalPage = pages.length > 0 ? pages[0] : null;

@@ -120,6 +120,7 @@
       }
 
       input[type='text'],
+      input[type='email'],
       textarea {
         width: 100%;
         padding: 12px;
@@ -219,13 +220,26 @@
       >This are another test with some obvius mistakes and typicla errors that should be detected by the proofreading systm.</div>
     </div>
 
+    <div class="section">
+      <h2>4. Email Input (ignored)</h2>
+      <label for="test-email" class="visually-hidden">Email Input</label>
+      <input
+              id="test-email"
+              type="email"
+              inputmode="email"
+              autocomplete="email"
+              placeholder="Type an email with mistakes..."
+              value="prooffly-user@exampl,com"
+      />
+    </div>
+
     <div class="info">
       <strong>Testing Instructions:</strong>
       <ol style="margin: 10px 0; padding-left: 20px">
         <li>Make sure the Proofly extension is loaded in Chrome and you've completed your onboarding</li>
         <li>Type or edit text in each field above</li>
         <li>Wait 1.5 seconds for proofreading to trigger</li>
-        <li>Verify highlights appear correctly on all three element types</li>
+        <li>Verify highlights appear correctly on all editable elements except the email field</li>
         <li>Click on highlights to see issue cards</li>
         <li>Test applying corrections</li>
         <li>Update extension settings and see your preference reactively reflect on this page</li>

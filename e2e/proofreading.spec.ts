@@ -19,39 +19,9 @@ import {
   waitForPopoverClosed,
   hasMirrorOverlay,
   delay,
+  getImmediateHighlightCount,
 } from './helpers/utils';
 import { Page } from 'puppeteer-core';
-
-const HOST_MATCH_TOLERANCE = 5;
-
-async function getImmediateHighlightCount(page: Page, fieldId: string): Promise<number> {
-  return page.evaluate(
-    (id, tolerance) => {
-      const field = document.getElementById(id);
-      if (!(field instanceof HTMLElement)) {
-        return 0;
-      }
-
-      const fieldRect = field.getBoundingClientRect();
-      const hosts = Array.from(document.querySelectorAll('proofly-highlighter'));
-      const hostForField = hosts.find((host) => {
-        const rect = host.getBoundingClientRect();
-        return (
-          Math.abs(rect.left - fieldRect.left) <= tolerance &&
-          Math.abs(rect.top - fieldRect.top) <= tolerance
-        );
-      });
-
-      if (!hostForField?.shadowRoot) {
-        return 0;
-      }
-
-      return hostForField.shadowRoot.querySelectorAll('.u').length;
-    },
-    fieldId,
-    HOST_MATCH_TOLERANCE
-  );
-}
 
 describe('Proofly options page', () => {
   test('should load as expected', async () => {
@@ -107,6 +77,68 @@ describe('Proofly proofreading', () => {
     const highlightCount = await waitForHighlightCount(page, 'test-input', (count) => count > 0);
 
     expect(highlightCount).toBeGreaterThan(0);
+  });
+
+  test('should not trigger proofreading on email input field', async () => {
+    await page.goto('http://localhost:8080/test.html', { waitUntil: 'networkidle0' });
+
+    await page.evaluate(() => {
+      const globalWindow = window as unknown as {
+        __prooflyControlEvents?: any[];
+        __prooflyControlEventsListener?: (event: Event) => void;
+      };
+
+      if (globalWindow.__prooflyControlEventsListener) {
+        window.removeEventListener(
+          'proofly:proofread-control',
+          globalWindow.__prooflyControlEventsListener
+        );
+      }
+
+      globalWindow.__prooflyControlEvents = [];
+
+      const listener = (event: Event) => {
+        const customEvent = event as CustomEvent;
+        globalWindow.__prooflyControlEvents?.push(customEvent.detail);
+      };
+
+      window.addEventListener('proofly:proofread-control', listener);
+      globalWindow.__prooflyControlEventsListener = listener;
+    });
+
+    await page.waitForSelector('#test-email', { timeout: 10000 });
+    await page.focus('#test-email');
+
+    await page.evaluate(() => {
+      const element = document.getElementById('test-email') as HTMLInputElement | null;
+      if (!element) {
+        return;
+      }
+      element.value = 'user.name@exampl,com';
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    await page.waitForFunction(
+      () => {
+        const globalWindow = window as unknown as {
+          __prooflyControlEvents?: Array<Record<string, any>>;
+        };
+        const email = document.getElementById('test-email') as HTMLInputElement | null;
+        const events = globalWindow.__prooflyControlEvents || [];
+        const textLength = email?.value.length ?? 0;
+        return events.some(
+          (event) =>
+            event?.status === 'ignored' &&
+            event?.reason === 'unsupported-target' &&
+            event?.textLength === textLength &&
+            event?.elementKind === 'input'
+        );
+      },
+      { timeout: 10000 }
+    );
+
+    const highlightCount = await getImmediateHighlightCount(page, 'test-email');
+    expect(highlightCount).toBe(0);
   });
 
   test('should append new text to input field and update highlights', async () => {

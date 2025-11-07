@@ -11,7 +11,9 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md,html}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md,html}\"",
     "test": "vitest run",
-    "test:watch": "TEST_WATCH_MODE=true vitest",
+    "test:watch": "vitest",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "test:e2e:watch": "TEST_WATCH_MODE=true vitest --config vitest.e2e.config.ts",
     "typecheck": "tsc"
   },
   "devDependencies": {
