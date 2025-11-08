@@ -99,16 +99,8 @@ async function updateBadgeForIssues(
     return;
   }
 
-  await chrome.action
-    .setBadgeBackgroundColor({ color: CLEAR_BADGE_COLOR, tabId })
-    .catch((error) =>
-      logger.warn({ error: serializeError(error), tabId }, 'Failed to set clear badge background')
-    );
-  await chrome.action
-    .setBadgeText({ text: '', tabId })
-    .catch((error) =>
-      logger.warn({ error: serializeError(error), tabId }, 'Failed to set empty badge text')
-    );
+  await chrome.action.setBadgeBackgroundColor({ color: CLEAR_BADGE_COLOR, tabId }).catch(() => {});
+  await chrome.action.setBadgeText({ text: '', tabId }).catch(() => {});
   currentBadgeState = 'clear';
 }
 
