@@ -405,7 +405,10 @@ export class ProofreadingController {
     }
 
     state.hooks.onCorrectionsChange?.(corrections);
-    undoManager.saveState(element, corrections);
+
+    if (!state.isRestoringFromHistory) {
+      undoManager.saveState(element, corrections);
+    }
   }
 }
 

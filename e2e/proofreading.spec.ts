@@ -22,7 +22,7 @@ import {
   getImmediateHighlightCount,
   startProofreadControlCapture,
 } from './helpers/utils';
-import { Page } from 'puppeteer-core';
+import { Page, type KeyInput } from 'puppeteer-core';
 
 describe('Proofly options page', () => {
   test('should load as expected', async () => {
@@ -651,6 +651,135 @@ describe('Proofly proofreading', () => {
     );
 
     expect(updatedHighlightCount).toBeGreaterThan(initialCount);
+  });
+
+  test('should undo and redo edits', async () => {
+    await page.goto('http://localhost:8080/test.html', { waitUntil: 'networkidle0' });
+
+    await page.waitForSelector('#test-contenteditable-div', { timeout: 10000 });
+    await page.focus('#test-contenteditable-div');
+
+    const originalText = await page.$eval('#test-contenteditable-div', (element) => {
+      return element.textContent ?? '';
+    });
+
+    await page.evaluate(() => {
+      const element = document.getElementById('test-contenteditable-div');
+      if (element) {
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
+
+    await page.waitForFunction(
+      () => {
+        if (!('highlights' in CSS)) return false;
+        const errorTypes = [
+          'spelling',
+          'grammar',
+          'punctuation',
+          'capitalization',
+          'preposition',
+          'missing-words',
+        ];
+        for (const errorType of errorTypes) {
+          const highlight = CSS.highlights.get(errorType);
+          if (highlight && highlight.size > 0) {
+            return true;
+          }
+        }
+        return false;
+      },
+      { timeout: 10000 }
+    );
+
+    const initialHighlights = await countContentEditableHighlights(
+      page,
+      'test-contenteditable-div'
+    );
+    expect(initialHighlights).toBeGreaterThan(0);
+
+    await page.evaluate(() => {
+      const element = document.getElementById('test-contenteditable-div');
+      if (!element) return;
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      range.collapse(false);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
+
+    const appendedText = 'lets add som mor txt';
+    await page.type('#test-contenteditable-div', ` ${appendedText}`);
+
+    const appendedHighlights = await waitForContentEditableHighlightCount(
+      page,
+      'test-contenteditable-div',
+      (count) => count > initialHighlights
+    );
+
+    const isMac = process.platform === 'darwin';
+    const pressShortcut = async (modifiers: KeyInput[], key: KeyInput) => {
+      for (const modifier of modifiers) {
+        await page.keyboard.down(modifier);
+      }
+      await page.keyboard.press(key);
+      for (const modifier of [...modifiers].reverse()) {
+        await page.keyboard.up(modifier);
+      }
+    };
+    const macUndoModifiers: KeyInput[] = ['Meta'];
+    const winUndoModifiers: KeyInput[] = ['Control'];
+    const macRedoModifiers: KeyInput[] = ['Meta', 'Shift'];
+    const winRedoModifiers: KeyInput[] = ['Control', 'Shift'];
+    const undoModifiers = isMac ? macUndoModifiers : winUndoModifiers;
+    const redoModifiers = isMac ? macRedoModifiers : winRedoModifiers;
+
+    for (let i = 0; i < 3; i++) {
+      await pressShortcut(undoModifiers, 'z');
+      await delay(100);
+    }
+
+    await waitForContentEditableHighlightCount(
+      page,
+      'test-contenteditable-div',
+      (count) => count <= initialHighlights
+    );
+
+    const afterUndoText = await page.$eval('#test-contenteditable-div', (element) => {
+      return element.textContent ?? '';
+    });
+
+    expect(afterUndoText).toEqual(originalText);
+
+    for (let i = 0; i < 3; i++) {
+      await pressShortcut(redoModifiers, 'z');
+      await delay(100);
+    }
+
+    const afterRedoTextPromise = page.waitForFunction(
+      (selector, text) => {
+        const element = document.querySelector(selector);
+        return element?.textContent?.includes(text) ?? false;
+      },
+      { timeout: 5000 },
+      '#test-contenteditable-div',
+      appendedText
+    );
+
+    await waitForContentEditableHighlightCount(
+      page,
+      'test-contenteditable-div',
+      (count) => count >= appendedHighlights
+    );
+
+    await afterRedoTextPromise;
+
+    const afterRedoText = await page.$eval('#test-contenteditable-div', (element) => {
+      return element.textContent ?? '';
+    });
+
+    expect(afterRedoText).toContain(appendedText);
   });
 
   test('should detect highlights after resetting contenteditable field', async () => {
