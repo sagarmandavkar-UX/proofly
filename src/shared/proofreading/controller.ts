@@ -21,8 +21,14 @@ export interface ProofreadLifecycleInternalEvent {
   fallbackLanguage?: string;
 }
 
+export interface ProofreadSelectionRange {
+  start: number;
+  end: number;
+}
+
 export interface ProofreadRunContext {
   executionId: string;
+  selection?: ProofreadSelectionRange;
 }
 
 export interface ProofreadingControllerDependencies {
@@ -52,6 +58,7 @@ interface ElementState {
 
 interface ProofreadOptions {
   force?: boolean;
+  selection?: ProofreadSelectionRange;
 }
 
 const defaultGetElementText = (element: HTMLElement): string => {
@@ -178,7 +185,9 @@ export class ProofreadingController {
     }
 
     const text = this.getElementText(element);
-    const textLength = text.length;
+    const selectionRange = this.clampSelectionRange(options.selection, text.length);
+    const hasSelection = selectionRange !== null;
+    const textLength = hasSelection ? selectionRange.end - selectionRange.start : text.length;
     const executionId = crypto.randomUUID();
 
     this.reportLifecycle?.({
@@ -191,7 +200,7 @@ export class ProofreadingController {
     });
 
     // Skip proofreading if text hasn't changed and not forced
-    if (!options.force && text === state.lastText) {
+    if (!options.force && !hasSelection && text === state.lastText) {
       this.reportLifecycle?.({
         status: 'ignored',
         element,
@@ -218,7 +227,7 @@ export class ProofreadingController {
     }
 
     const metadata = undoManager.getMetadataForText(element, text);
-    if (!options.force && metadata !== undefined) {
+    if (!options.force && !hasSelection && metadata !== undefined) {
       const corrections = Array.isArray(metadata) ? metadata : [];
       this.applyCorrections(element, corrections);
       state.lastText = text;
@@ -240,7 +249,10 @@ export class ProofreadingController {
     });
 
     try {
-      const result = await this.runProofread(element, text, { executionId });
+      const result = await this.runProofread(element, text, {
+        executionId,
+        selection: selectionRange ?? options.selection,
+      });
       const currentText = this.getElementText(element);
       if (currentText !== text) {
         this.reportLifecycle?.({
@@ -271,7 +283,10 @@ export class ProofreadingController {
 
       const rawCorrections = result.corrections ?? [];
       const filtered = this.filterCorrections(element, rawCorrections, text);
-      this.applyCorrections(element, filtered);
+      const merged = selectionRange
+        ? this.mergeSelectionCorrections(state.corrections, filtered, selectionRange)
+        : filtered;
+      this.applyCorrections(element, merged);
       state.lastText = text;
       this.reportLifecycle?.({
         status: 'complete',
@@ -409,6 +424,50 @@ export class ProofreadingController {
     if (!state.isRestoringFromHistory) {
       undoManager.saveState(element, corrections);
     }
+  }
+
+  private clampSelectionRange(
+    selection: ProofreadSelectionRange | undefined,
+    textLength: number
+  ): ProofreadSelectionRange | null {
+    if (!selection) {
+      return null;
+    }
+
+    const start = Math.max(0, Math.min(selection.start, textLength));
+    const end = Math.max(start, Math.min(selection.end, textLength));
+    if (end <= start) {
+      return null;
+    }
+
+    return { start, end };
+  }
+
+  private mergeSelectionCorrections(
+    existing: ProofreadCorrection[],
+    incoming: ProofreadCorrection[],
+    selection: ProofreadSelectionRange
+  ): ProofreadCorrection[] {
+    const preserved = existing.filter(
+      (correction) => !this.correctionStartsWithinSelection(correction, selection)
+    );
+    if (incoming.length === 0) {
+      return preserved;
+    }
+
+    return [...preserved, ...incoming].sort((a, b) => {
+      if (a.startIndex === b.startIndex) {
+        return a.endIndex - b.endIndex;
+      }
+      return a.startIndex - b.startIndex;
+    });
+  }
+
+  private correctionStartsWithinSelection(
+    correction: ProofreadCorrection,
+    selection: ProofreadSelectionRange
+  ): boolean {
+    return correction.startIndex >= selection.start && correction.startIndex < selection.end;
   }
 }
 

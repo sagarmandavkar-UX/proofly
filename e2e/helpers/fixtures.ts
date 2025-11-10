@@ -27,6 +27,18 @@ export async function ensureAutoFixOnDoubleClick(
   }, autofixOnDoubleClick);
 }
 
+export async function ensureAutoCorrectEnabled(page: Page, enabled: boolean): Promise<void> {
+  const extensionId = getExtensionId();
+
+  await page.goto(`chrome-extension://${extensionId}/src/options/index.html`, {
+    waitUntil: 'networkidle0',
+  });
+
+  await page.evaluate(async (value) => {
+    await chrome.storage.sync.set({ autoCorrect: value });
+  }, enabled);
+}
+
 export async function ensureModelReady(page: Page): Promise<void> {
   console.log('Warming up model by visiting options page...');
   await page.goto(`chrome-extension://${EXTENSION_ID}/src/options/index.html`, {

@@ -130,4 +130,112 @@ describe('ProofreadingController', () => {
     expect(throttledEvents).toHaveLength(1);
     expect(throttledEvents[0]).toMatchObject({ reason: 'applying-correction' });
   });
+
+  it('passes selection context to runProofread when provided', async () => {
+    const runProofread = vi.fn(async () => null);
+    const controller = createProofreadingController({
+      runProofread,
+      filterCorrections: vi.fn((_, corrections) => corrections),
+      debounceMs: 0,
+      getElementText: () => 'sample text',
+    });
+
+    const element = createMockElement('sample text');
+    controller.registerTarget({ element, hooks: createHooks() });
+
+    const selection = { start: 2, end: 6 };
+    await controller.proofread(element, { selection });
+
+    expect(runProofread).toHaveBeenCalledWith(element, 'sample text', {
+      executionId: expect.any(String),
+      selection,
+    });
+  });
+
+  it('reports selection length in lifecycle events when provided', async () => {
+    const lifecycleEvents: ProofreadLifecycleInternalEvent[] = [];
+    const controller = createProofreadingController({
+      runProofread: vi.fn(async () => ({ correctedInput: 'text', corrections: [] })),
+      filterCorrections: vi.fn((_, corrections) => corrections),
+      debounceMs: 0,
+      getElementText: () => 'long sample text',
+      onLifecycleEvent: (event) => lifecycleEvents.push(event),
+    });
+
+    const element = createMockElement('long sample text');
+    controller.registerTarget({ element, hooks: createHooks() });
+
+    await controller.proofread(element, { selection: { start: 5, end: 9 } });
+
+    const tracked = lifecycleEvents.filter((event) =>
+      ['queued', 'start', 'complete'].includes(event.status)
+    );
+    expect(tracked).not.toHaveLength(0);
+    tracked.forEach((event) => {
+      expect(event.textLength).toBe(4);
+    });
+  });
+
+  it('merges new selection corrections with existing ones', async () => {
+    const initialCorrections: ProofreadCorrection[] = [
+      { startIndex: 0, endIndex: 4, correction: 'This' },
+      { startIndex: 10, endIndex: 14, correction: 'text' },
+    ];
+
+    const runProofread = vi
+      .fn()
+      .mockResolvedValueOnce({ correctedInput: 'Fixed', corrections: initialCorrections })
+      .mockResolvedValueOnce({
+        correctedInput: 'update',
+        corrections: [{ startIndex: 2, endIndex: 4, correction: 'is' }],
+      });
+
+    const controller = createProofreadingController({
+      runProofread,
+      filterCorrections: vi.fn((_, corrections) => corrections),
+      debounceMs: 0,
+      getElementText: () => 'bad sample text',
+    });
+
+    const element = createMockElement('bad sample text');
+    controller.registerTarget({ element, hooks: createHooks() });
+
+    await controller.proofread(element);
+    await controller.proofread(element, { selection: { start: 1, end: 6 } });
+
+    const corrections = controller.getCorrections(element);
+    expect(corrections).toEqual([
+      { startIndex: 0, endIndex: 4, correction: 'This' },
+      { startIndex: 2, endIndex: 4, correction: 'is' },
+      { startIndex: 10, endIndex: 14, correction: 'text' },
+    ]);
+  });
+
+  it('removes overlapping corrections when selection result has no issues', async () => {
+    const initialCorrections: ProofreadCorrection[] = [
+      { startIndex: 0, endIndex: 4, correction: 'This' },
+      { startIndex: 6, endIndex: 9, correction: 'bad' },
+    ];
+
+    const runProofread = vi
+      .fn()
+      .mockResolvedValueOnce({ correctedInput: 'Fixed', corrections: initialCorrections })
+      .mockResolvedValueOnce({ correctedInput: 'noop', corrections: [] });
+
+    const controller = createProofreadingController({
+      runProofread,
+      filterCorrections: vi.fn((_, corrections) => corrections),
+      debounceMs: 0,
+      getElementText: () => 'bad sample text',
+    });
+
+    const element = createMockElement('bad sample text');
+    controller.registerTarget({ element, hooks: createHooks() });
+
+    await controller.proofread(element);
+    await controller.proofread(element, { selection: { start: 5, end: 8 } });
+
+    const corrections = controller.getCorrections(element);
+    expect(corrections).toEqual([{ startIndex: 0, endIndex: 4, correction: 'This' }]);
+  });
 });

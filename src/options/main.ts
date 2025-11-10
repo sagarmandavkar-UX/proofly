@@ -709,7 +709,7 @@ async function setupLiveTestArea(
   }
 
   const controller = createProofreadingController({
-    runProofread: async (_element, text) => {
+    runProofread: async (_element, text, _context) => {
       if (!proofreaderService || !proofreaderService.canProofread(text)) {
         return null;
       }

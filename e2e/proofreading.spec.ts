@@ -4,6 +4,7 @@ import {
   getExtensionId,
   ensureModelReady,
   ensureAutoFixOnDoubleClick,
+  ensureAutoCorrectEnabled,
   resetExtensionStorage,
 } from './helpers/fixtures';
 import { getBrowser } from './helpers/setup';
@@ -21,6 +22,7 @@ import {
   delay,
   getImmediateHighlightCount,
   startProofreadControlCapture,
+  triggerProofreadShortcut,
 } from './helpers/utils';
 import { Page, type KeyInput } from 'puppeteer-core';
 
@@ -545,6 +547,63 @@ describe('Proofly proofreading', () => {
 
     const highlightCount = await waitForHighlightCount(page, 'test-textarea', (count) => count > 0);
     expect(highlightCount).toBeGreaterThan(0);
+  });
+
+  test('manual shortcut proofs only selected text when auto-check is disabled and partial text is highlighted', async () => {
+    const testPageUrl = 'http://localhost:8080/test.html';
+    await ensureAutoCorrectEnabled(page, false);
+
+    try {
+      await page.goto(testPageUrl, { waitUntil: 'networkidle0' });
+
+      await page.waitForSelector('#test-textarea', { timeout: 10000 });
+      await page.focus('#test-textarea');
+
+      await page.evaluate(() => {
+        const element = document.getElementById('test-textarea') as HTMLTextAreaElement | null;
+        if (!element) {
+          return;
+        }
+        element.setSelectionRange(0, 35);
+      });
+
+      await triggerProofreadShortcut(page);
+
+      const selectionHighlightCount = await waitForHighlightCount(
+        page,
+        'test-textarea',
+        (count) => count > 0
+      );
+
+      expect(selectionHighlightCount).toBeGreaterThan(0);
+
+      await page.reload({ waitUntil: 'networkidle0' });
+
+      await page.waitForSelector('#test-textarea', { timeout: 10000 });
+      await page.focus('#test-textarea');
+
+      await page.evaluate(() => {
+        const element = document.getElementById('test-textarea') as HTMLTextAreaElement | null;
+        if (!element) {
+          return;
+        }
+        const length = element.value.length;
+        element.setSelectionRange(length, length);
+      });
+
+      await triggerProofreadShortcut(page);
+
+      const fullHighlightCount = await waitForHighlightCount(
+        page,
+        'test-textarea',
+        (count) => count > 0
+      );
+
+      expect(fullHighlightCount).toBeGreaterThan(selectionHighlightCount);
+    } finally {
+      await ensureAutoCorrectEnabled(page, true);
+      await page.goto(testPageUrl, { waitUntil: 'networkidle0' });
+    }
   });
 
   test('should inject highlights on contenteditable input', async () => {

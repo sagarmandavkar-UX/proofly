@@ -328,6 +328,16 @@ export async function delay(millis: number) {
   return new Promise((resolve) => setTimeout(resolve, millis));
 }
 
+export async function triggerProofreadShortcut(page: Page): Promise<void> {
+  const modifier = navigator.platform.toLowerCase().includes('mac') ? 'Meta' : 'Control';
+
+  await page.keyboard.down(modifier);
+  await page.keyboard.down('Shift');
+  await page.keyboard.press('KeyP');
+  await page.keyboard.up('Shift');
+  await page.keyboard.up(modifier);
+}
+
 export async function getImmediateHighlightCount(page: Page, fieldId: string): Promise<number> {
   return page.evaluate((id, tolerance = 5) => {
     const field = document.getElementById(id);

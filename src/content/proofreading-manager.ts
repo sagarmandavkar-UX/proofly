@@ -22,6 +22,7 @@ import {
   createProofreadingController,
   type ProofreadLifecycleInternalEvent,
   type ProofreadRunContext,
+  type ProofreadSelectionRange,
 } from '../shared/proofreading/controller.ts';
 import {
   isProofreadTarget,
@@ -742,11 +743,13 @@ export class ProofreadingManager {
     context: ProofreadRunContext
   ): Promise<ProofreadResult | null> {
     return this.proofreadQueue.enqueue(async () => {
+      const selection = this.normalizeSelectionRange(context.selection, text.length);
+      const targetText = selection ? text.slice(selection.start, selection.end) : text;
       let detectedLanguage: string | null = null;
 
       if (this.languageDetectionService) {
         try {
-          detectedLanguage = await this.languageDetectionService.detectLanguage(text);
+          detectedLanguage = await this.languageDetectionService.detectLanguage(targetText);
           if (detectedLanguage) {
             this.clearElementMessage(element, 'language-detection-unconfident');
             this.clearElementMessage(element, 'language-detection-error');
@@ -771,13 +774,13 @@ export class ProofreadingManager {
         status: 'language-detected',
         element,
         executionId: context.executionId,
-        textLength: text.length,
+        textLength: targetText.length,
         language: detectedLanguage,
         fallbackLanguage,
       });
 
       const response = await this.requestProofread(
-        text,
+        targetText,
         requestedLanguage,
         fallbackLanguage,
         context
@@ -803,9 +806,11 @@ export class ProofreadingManager {
             },
             'Proofreader request cancelled, scheduling retry'
           );
-          queueMicrotask(() => {
-            this.controller.scheduleProofread(element);
-          });
+          if (!selection) {
+            queueMicrotask(() => {
+              this.controller.scheduleProofread(element);
+            });
+          }
           throw new DOMException(
             response.error.message || 'Proofreader request cancelled',
             'AbortError'
@@ -816,7 +821,11 @@ export class ProofreadingManager {
       }
 
       this.clearElementMessage(element, 'unsupported-language');
-      return response.result;
+      const result = response.result;
+      if (!result || !selection) {
+        return result;
+      }
+      return this.rebaseProofreadResult(result, selection, text);
     });
   }
 
@@ -865,6 +874,42 @@ export class ProofreadingManager {
     return corrections
       .filter((correction) => correction.startIndex < trimmedLength)
       .filter((correction) => this.isCorrectionEnabled(correction));
+  }
+
+  private normalizeSelectionRange(
+    range: ProofreadSelectionRange | undefined,
+    textLength: number
+  ): ProofreadSelectionRange | null {
+    if (!range) {
+      return null;
+    }
+
+    const start = Math.max(0, Math.min(range.start, textLength));
+    const end = Math.max(start, Math.min(range.end, textLength));
+    if (end <= start) {
+      return null;
+    }
+
+    return { start, end };
+  }
+
+  private rebaseProofreadResult(
+    result: ProofreadResult,
+    range: ProofreadSelectionRange,
+    fullText: string
+  ): ProofreadResult {
+    const prefix = fullText.slice(0, range.start);
+    const suffix = fullText.slice(range.end);
+    const corrections = result.corrections.map((correction) => ({
+      ...correction,
+      startIndex: correction.startIndex + range.start,
+      endIndex: correction.endIndex + range.start,
+    }));
+
+    return {
+      correctedInput: `${prefix}${result.correctedInput}${suffix}`,
+      corrections,
+    };
   }
 
   private handleCorrectionFromPopover(element: HTMLElement, correction: ProofreadCorrection): void {
@@ -1150,7 +1195,68 @@ export class ProofreadingManager {
       return;
     }
 
-    await this.controller.proofread(this.activeElement);
+    const selection = this.getSelectionRange(this.activeElement);
+
+    await this.controller.proofread(this.activeElement, {
+      force: true,
+      selection: selection ?? undefined,
+    });
+  }
+
+  private getSelectionRange(element: HTMLElement): ProofreadSelectionRange | null {
+    if (element instanceof HTMLTextAreaElement || element instanceof HTMLInputElement) {
+      const start = element.selectionStart;
+      const end = element.selectionEnd;
+      if (start === null || end === null || start === end) {
+        return null;
+      }
+      const textLength = element.value.length;
+      const lower = Math.min(start, end);
+      const upper = Math.max(start, end);
+      const normalizedStart = Math.max(0, Math.min(lower, textLength));
+      const normalizedEnd = Math.max(normalizedStart, Math.min(upper, textLength));
+      return {
+        start: normalizedStart,
+        end: normalizedEnd,
+      };
+    }
+
+    if (!element.isContentEditable) {
+      return null;
+    }
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return null;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!element.contains(range.startContainer) || !element.contains(range.endContainer)) {
+      return null;
+    }
+
+    const start = this.getTextOffsetWithin(element, range.startContainer, range.startOffset);
+    const end = this.getTextOffsetWithin(element, range.endContainer, range.endOffset);
+
+    if (start === end) {
+      return null;
+    }
+
+    return {
+      start: Math.min(start, end),
+      end: Math.max(start, end),
+    };
+  }
+
+  private getTextOffsetWithin(root: HTMLElement, node: Node, offset: number): number {
+    const range = document.createRange();
+    range.setStart(root, 0);
+    try {
+      range.setEnd(node, offset);
+    } catch {
+      return 0;
+    }
+    return range.toString().length;
   }
 
   destroy(): void {
