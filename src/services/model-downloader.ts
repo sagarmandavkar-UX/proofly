@@ -214,7 +214,8 @@ export function createModelDownloader(config: ModelDownloaderConfig = DEFAULT_DO
         if (availability === 'unavailable') {
           throw new Error(
             'Proofreader API not available on this device. ' +
-              'Requirements: Chrome 121+, 22GB free space, 4GB+ VRAM'
+              'Requirements: Chrome 141+, 22GB free space, 4GB+ VRAM. ' +
+              'Enable "Proofreader API for Gemini Nano" on chrome://flags/#proofreader-api-for-gemini-nano.'
           );
         }
 
