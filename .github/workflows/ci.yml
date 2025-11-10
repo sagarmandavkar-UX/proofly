@@ -12,6 +12,16 @@ permissions:
   contents: read
 
 jobs:
+  commit-lint:
+    name: Commit message linting
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Commit lint
+        uses: ahmadnassri/action-commit-lint@v2
+        with:
+          config: ./.commitlintrc
+
   validate:
     runs-on: ubuntu-latest
 
@@ -30,6 +40,9 @@ jobs:
 
       - name: Check formatting
         run: npm run format:check
+
+      - name: Check linting
+        run: npm run lint
 
       - name: Type check
         run: npm run typecheck

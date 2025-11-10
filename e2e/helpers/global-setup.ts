@@ -34,7 +34,7 @@ async function startServer(): Promise<void> {
 
       res.writeHead(200, { 'Content-Type': contentType });
       res.end(content);
-    } catch (error) {
+    } catch (_error) {
       res.writeHead(404);
       res.end('Not found');
     }

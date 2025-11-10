@@ -227,8 +227,8 @@ export class ContentHighlighter {
     if (!clickedCorrection) {
       try {
         this.popover.hidePopover();
-      } catch (e) {
-        logger.warn({ error: e }, 'Failed to hide popover');
+      } catch (_error) {
+        logger.warn({ error: _error }, 'Failed to hide popover');
       }
       this.clearSelectedCorrection();
       return;
@@ -359,7 +359,7 @@ export class ContentHighlighter {
           minDistance = distance;
           closestOffset = i;
         }
-      } catch (e) {
+      } catch (_error) {
         // Skip if range creation fails
         continue;
       }

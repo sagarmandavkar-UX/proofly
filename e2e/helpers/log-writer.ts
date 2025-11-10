@@ -96,8 +96,8 @@ export async function writeExtensionLogsToFile(
         });
 
         return sorted.slice(0, maxEntries);
-      } catch (error) {
-        return { error: error instanceof Error ? error.message : String(error) };
+      } catch (_error) {
+        return { error: _error instanceof Error ? _error.message : String(_error) };
       }
     }, params);
 

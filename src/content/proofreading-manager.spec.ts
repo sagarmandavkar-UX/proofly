@@ -57,7 +57,11 @@ vi.mock('../services/language-detector.ts', () => ({
   })),
 }));
 
-import { emitProofreadControlEvent } from '../shared/proofreading/control-events.ts';
+import {
+  emitProofreadControlEvent,
+  type ProofreadLifecycleReason,
+} from '../shared/proofreading/control-events.ts';
+import type { ProofreadLifecycleInternalEvent } from '../shared/proofreading/controller.ts';
 import { ProofreadingManager } from './proofreading-manager.ts';
 
 function createElement(tagName: string, text = ''): HTMLElement {
@@ -79,7 +83,11 @@ describe('ProofreadingManager lifecycle reporting', () => {
 
     const element = createElement('input');
 
-    (manager as unknown as { handleProofreadLifecycle: Function }).handleProofreadLifecycle({
+    (
+      manager as unknown as {
+        handleProofreadLifecycle: (event: ProofreadLifecycleInternalEvent) => void;
+      }
+    ).handleProofreadLifecycle({
       status: 'queued',
       element,
       executionId: 'exec-123',
@@ -101,10 +109,11 @@ describe('ProofreadingManager lifecycle reporting', () => {
     const manager = new ProofreadingManager();
     const element = createElement('div', 'draft text');
 
-    (manager as unknown as { reportIgnoredElement: Function }).reportIgnoredElement(
-      element,
-      'unsupported-target'
-    );
+    (
+      manager as unknown as {
+        reportIgnoredElement: (el: HTMLElement, reason: ProofreadLifecycleReason) => void;
+      }
+    ).reportIgnoredElement(element, 'unsupported-target');
 
     expect(emitProofreadControlEvent).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -119,7 +128,11 @@ describe('ProofreadingManager lifecycle reporting', () => {
     const manager = new ProofreadingManager();
     const element = createElement('textarea', 'Hello world');
 
-    (manager as unknown as { handleProofreadLifecycle: Function }).handleProofreadLifecycle({
+    (
+      manager as unknown as {
+        handleProofreadLifecycle: (event: ProofreadLifecycleInternalEvent) => void;
+      }
+    ).handleProofreadLifecycle({
       status: 'complete',
       element,
       executionId: 'exec-999',

@@ -57,8 +57,8 @@ async function reloadExtension(browser: Browser): Promise<void> {
     await page.close();
 
     await new Promise((resolve) => setTimeout(resolve, 1000));
-  } catch (error) {
-    console.log('⚠️  Could not reload extension:', error);
+  } catch (_error) {
+    console.log('⚠️  Could not reload extension:', _error);
   }
 }
 
@@ -89,7 +89,7 @@ beforeAll(async () => {
         browserURL: `http://localhost:${debugPort}`,
       });
       console.log('✅ Connected to existing Chrome instance');
-    } catch (error) {
+    } catch (_error) {
       console.log('🚀 Spawning new detached Chrome process');
 
       const chromeArgs = [...chromeLaunchArgs, `--remote-debugging-port=${debugPort}`];
@@ -144,8 +144,8 @@ afterAll(async () => {
       await writeExtensionLogsToFile(globalBrowser, EXTENSION_ID, {
         targetUrl: 'http://localhost:8080/test.html',
       });
-    } catch (error) {
-      console.log('⚠️  Failed to write extension logs:', error);
+    } catch (_error) {
+      console.log('⚠️  Failed to write extension logs:', _error);
     }
   }
 
