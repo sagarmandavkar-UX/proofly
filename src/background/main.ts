@@ -11,6 +11,8 @@ import type {
   ProoflyMessage,
   ProofreaderStateMessage,
   ProofreadRequestMessage,
+  ProofreaderBusyStateRequestMessage,
+  ProofreaderBusyStateResponseMessage,
 } from '../shared/messages/issues.ts';
 import { serializeError } from '../shared/utils/serialize.ts';
 
@@ -101,8 +103,8 @@ async function updateBadgeForIssues(
     return;
   }
 
-  await chrome.action.setBadgeBackgroundColor({ color: CLEAR_BADGE_COLOR, tabId }).catch(() => {});
-  await chrome.action.setBadgeText({ text: '', tabId }).catch(() => {});
+  await chrome.action.setBadgeBackgroundColor({ color: CLEAR_BADGE_COLOR, tabId }).catch(() => { });
+  await chrome.action.setBadgeText({ text: '', tabId }).catch(() => { });
   currentBadgeState = 'clear';
 }
 
@@ -116,7 +118,8 @@ function handleIssuesUpdate(
   }
 
   const tabUrl = sender.tab?.url ?? '';
-  if (tabUrl.startsWith('chrome-extension://')) {
+  const isOptionsPage = tabUrl.includes('/src/options/index.html');
+  if (tabUrl.startsWith('chrome-extension://') && !isOptionsPage) {
     logger.info({ tabId, tabUrl }, 'Ignoring issues update from extension page');
     return;
   }
@@ -156,6 +159,14 @@ function handleIssuesStateRequest(
   sendResponse({ type: 'proofly:issues-state', payload: state?.payload ?? null });
 }
 
+function handleProofreaderBusyStateRequest(
+  message: ProofreaderBusyStateRequestMessage,
+  sendResponse: (response: ProofreaderBusyStateResponseMessage) => void
+): void {
+  const busy = busyTabs.has(message.payload.tabId);
+  sendResponse({ type: 'proofly:proofreader-busy-state', payload: { busy } });
+}
+
 function handleProofreaderStateMessage(
   message: ProofreaderStateMessage,
   sender: chrome.runtime.MessageSender
@@ -166,7 +177,8 @@ function handleProofreaderStateMessage(
   }
 
   const tabUrl = sender.tab?.url ?? '';
-  if (tabUrl.startsWith('chrome-extension://')) {
+  const isOptionsPage = tabUrl.includes('/src/options/index.html');
+  if (tabUrl.startsWith('chrome-extension://') && !isOptionsPage) {
     logger.info({ tabId, tabUrl }, 'Ignoring proofreader state from extension page');
     return;
   }
@@ -290,6 +302,11 @@ chrome.runtime.onMessage.addListener((message: ProoflyMessage, sender, sendRespo
 
   if (message.type === 'proofly:get-issues-state') {
     handleIssuesStateRequest(message, sendResponse);
+    return true;
+  }
+
+  if (message.type === 'proofly:get-proofreader-busy-state') {
+    handleProofreaderBusyStateRequest(message, sendResponse);
     return true;
   }
 

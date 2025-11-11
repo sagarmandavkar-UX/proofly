@@ -35,9 +35,16 @@ const mockControllerInstance = {
   isRestoringFromHistory: vi.fn(() => false),
 };
 
-vi.mock('../shared/proofreading/controller.ts', () => ({
-  createProofreadingController: vi.fn(() => mockControllerInstance),
-}));
+vi.mock('../shared/proofreading/controller.ts', async () => {
+  const actual = (await vi.importActual('../shared/proofreading/controller.ts')) as Record<
+    string,
+    unknown
+  >;
+  return {
+    ...actual,
+    createProofreadingController: vi.fn(() => mockControllerInstance),
+  };
+});
 
 vi.mock('./components/content-highlighter.ts', () => ({
   ContentHighlighter: class {
@@ -77,7 +84,10 @@ import {
   emitProofreadControlEvent,
   type ProofreadLifecycleReason,
 } from '../shared/proofreading/control-events.ts';
-import type { ProofreadLifecycleInternalEvent } from '../shared/proofreading/controller.ts';
+import {
+  rebaseProofreadResult,
+  type ProofreadLifecycleInternalEvent,
+} from '../shared/proofreading/controller.ts';
 import { ProofreadingManager } from './proofreading-manager.ts';
 
 function createElement(tagName: string, text = ''): HTMLElement {
@@ -266,15 +276,7 @@ describe('ProofreadingManager selection helpers', () => {
       ],
     };
 
-    const rebased = (
-      manager as unknown as {
-        rebaseProofreadResult: (
-          res: typeof result,
-          selection: typeof range,
-          full: string
-        ) => typeof result;
-      }
-    ).rebaseProofreadResult(result, range, fullText);
+    const rebased = rebaseProofreadResult(result, range, fullText);
 
     expect(rebased.correctedInput).toBe(
       `${fullText.slice(0, range.start)}${result.correctedInput}${fullText.slice(range.end)}`

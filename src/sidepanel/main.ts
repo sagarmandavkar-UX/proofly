@@ -11,6 +11,8 @@ import type {
   IssuesUpdatePayload,
   ProoflyMessage,
   ProofreaderStateUpdateMessage,
+  ProofreaderBusyStateRequestMessage,
+  ProofreaderBusyStateResponseMessage,
 } from '../shared/messages/issues.ts';
 import { ProoflyIssuesPanel } from './components/issues-panel.ts';
 import { ensureProofreaderModelReady } from '../services/model-checker.ts';
@@ -128,7 +130,7 @@ async function refreshActiveTab(): Promise<void> {
 
     activeTabId = tab.id;
     currentWindowId = tab.windowId;
-    await requestIssuesState(tab.id);
+    await Promise.all([requestIssuesState(tab.id), requestBusyState(tab.id)]);
   } catch (error) {
     logger.error({ error }, 'Failed to resolve active tab for sidepanel');
     updatePanelState(null);
@@ -160,8 +162,15 @@ function handleIssuesUpdateMessage(
     return false;
   }
 
-  if (activeTabId !== senderTabId) {
+  const senderUrl = sender.tab?.url ?? '';
+  const isOptionsPage = senderUrl.includes('/src/options/index.html');
+
+  if (activeTabId !== senderTabId && !isOptionsPage) {
     return false;
+  }
+
+  if (isOptionsPage) {
+    activeTabId = senderTabId;
   }
 
   updatePanelState(message.payload);
@@ -182,7 +191,7 @@ async function handleTabActivated(activeInfo: { tabId: number; windowId: number 
   }
 
   activeTabId = activeInfo.tabId;
-  await requestIssuesState(activeInfo.tabId);
+  await Promise.all([requestIssuesState(activeInfo.tabId), requestBusyState(activeInfo.tabId)]);
 }
 
 function handleTabRemoved(tabId: number): void {
@@ -209,6 +218,28 @@ async function requestIssuesState(tabId: number): Promise<void> {
     updatePanelState(response.payload ?? null);
   } catch (error) {
     logger.error({ error, tabId }, 'Failed to request issues state');
+  }
+}
+
+async function requestBusyState(tabId: number): Promise<void> {
+  try {
+    const message: ProofreaderBusyStateRequestMessage = {
+      type: 'proofly:get-proofreader-busy-state',
+      payload: { tabId },
+    };
+    const response = (await chrome.runtime.sendMessage(
+      message
+    )) as ProofreaderBusyStateResponseMessage;
+
+    if (response?.type !== 'proofly:proofreader-busy-state') {
+      logger.warn({ tabId }, 'Unexpected response for busy state request');
+      return;
+    }
+
+    panelBusy = response.payload.busy;
+    document.body.classList.toggle('prfly-panel-busy', panelBusy);
+  } catch (error) {
+    logger.error({ error, tabId }, 'Failed to request busy state');
   }
 }
 

@@ -31,6 +31,8 @@ export interface ProofreadRunContext {
   selection?: ProofreadSelectionRange;
 }
 
+export type SelectionOffsetResolver = (root: HTMLElement, node: Node, offset: number) => number;
+
 export interface ProofreadingControllerDependencies {
   runProofread(
     element: HTMLElement,
@@ -469,6 +471,84 @@ export class ProofreadingController {
   ): boolean {
     return correction.startIndex >= selection.start && correction.startIndex < selection.end;
   }
+}
+
+const defaultSelectionOffsetResolver: SelectionOffsetResolver = (root, node, offset) => {
+  const range = document.createRange();
+  range.setStart(root, 0);
+  try {
+    range.setEnd(node, offset);
+  } catch {
+    return 0;
+  }
+  return range.toString().length;
+};
+
+export function getSelectionRangeFromElement(
+  element: HTMLElement,
+  resolver: SelectionOffsetResolver = defaultSelectionOffsetResolver
+): ProofreadSelectionRange | null {
+  if (element instanceof HTMLTextAreaElement || element instanceof HTMLInputElement) {
+    const start = element.selectionStart;
+    const end = element.selectionEnd;
+    if (start === null || end === null || start === end) {
+      return null;
+    }
+
+    const textLength = element.value.length;
+    const lower = Math.min(start, end);
+    const upper = Math.max(start, end);
+    const normalizedStart = Math.max(0, Math.min(lower, textLength));
+    const normalizedEnd = Math.max(normalizedStart, Math.min(upper, textLength));
+    return {
+      start: normalizedStart,
+      end: normalizedEnd,
+    };
+  }
+
+  if (!element.isContentEditable) {
+    return null;
+  }
+
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) {
+    return null;
+  }
+
+  const range = selection.getRangeAt(0);
+  if (!element.contains(range.startContainer) || !element.contains(range.endContainer)) {
+    return null;
+  }
+
+  const start = resolver(element, range.startContainer, range.startOffset);
+  const end = resolver(element, range.endContainer, range.endOffset);
+  if (start === end) {
+    return null;
+  }
+
+  return {
+    start: Math.min(start, end),
+    end: Math.max(start, end),
+  };
+}
+
+export function rebaseProofreadResult(
+  result: ProofreadResult,
+  range: ProofreadSelectionRange,
+  fullText: string
+): ProofreadResult {
+  const prefix = fullText.slice(0, range.start);
+  const suffix = fullText.slice(range.end);
+  const corrections = result.corrections.map((correction) => ({
+    ...correction,
+    startIndex: correction.startIndex + range.start,
+    endIndex: correction.endIndex + range.start,
+  }));
+
+  return {
+    correctedInput: `${prefix}${result.correctedInput}${suffix}`,
+    corrections,
+  };
 }
 
 const adjustCorrectionAfterApply = (

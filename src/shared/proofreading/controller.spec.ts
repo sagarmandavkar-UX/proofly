@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 
 vi.mock('../utils/undo-manager.ts', () => {
   return {
@@ -17,7 +17,73 @@ vi.mock('../utils/clipboard.ts', () => ({
   replaceTextWithUndo: vi.fn(),
 }));
 
-import { createProofreadingController } from './controller.ts';
+const selectionTestEnv = vi.hoisted(() => {
+  const globalAny = globalThis as Record<string, any>;
+  const originals = {
+    HTMLInputElement: globalAny.HTMLInputElement,
+    HTMLTextAreaElement: globalAny.HTMLTextAreaElement,
+    window: globalAny.window,
+  };
+
+  class TestTextInput {
+    value = '';
+    selectionStart: number | null = 0;
+    selectionEnd: number | null = 0;
+
+    setSelectionRange(start: number, end: number) {
+      this.selectionStart = start;
+      this.selectionEnd = end;
+    }
+
+    static [Symbol.hasInstance](instance: unknown): boolean {
+      if (!instance || typeof instance !== 'object') {
+        return false;
+      }
+      const candidate = instance as Record<string, unknown>;
+      return 'selectionStart' in candidate && 'selectionEnd' in candidate && 'value' in candidate;
+    }
+  }
+
+  class TestTextArea extends TestTextInput {}
+
+  const windowRef =
+    originals.window ??
+    ({
+      getSelection: () => null,
+    } as { getSelection: () => any });
+
+  globalAny.HTMLInputElement = TestTextInput;
+  globalAny.HTMLTextAreaElement = TestTextArea;
+  globalAny.window = windowRef;
+
+  return {
+    TextInputCtor: TestTextInput,
+    TextAreaCtor: TestTextArea,
+    windowRef,
+    restore() {
+      if (originals.HTMLInputElement === undefined) {
+        delete globalAny.HTMLInputElement;
+      } else {
+        globalAny.HTMLInputElement = originals.HTMLInputElement;
+      }
+      if (originals.HTMLTextAreaElement === undefined) {
+        delete globalAny.HTMLTextAreaElement;
+      } else {
+        globalAny.HTMLTextAreaElement = originals.HTMLTextAreaElement;
+      }
+      if (originals.window === undefined) {
+        delete globalAny.window;
+      } else {
+        globalAny.window = originals.window;
+      }
+    },
+    resetWindowSelection() {
+      windowRef.getSelection = () => null;
+    },
+  };
+});
+
+import { createProofreadingController, getSelectionRangeFromElement } from './controller.ts';
 import type { ProofreadLifecycleInternalEvent } from './controller.ts';
 import type { ProofreadCorrection } from '../types.ts';
 
@@ -237,5 +303,63 @@ describe('ProofreadingController', () => {
 
     const corrections = controller.getCorrections(element);
     expect(corrections).toEqual([{ startIndex: 0, endIndex: 4, correction: 'This' }]);
+  });
+});
+
+describe('getSelectionRangeFromElement', () => {
+  beforeEach(() => {
+    selectionTestEnv.resetWindowSelection();
+  });
+
+  afterAll(() => {
+    selectionTestEnv.restore();
+  });
+
+  it('returns normalized selection range for text inputs', () => {
+    const TextAreaCtor = selectionTestEnv.TextAreaCtor as { new (): HTMLTextAreaElement };
+    const textarea = new TextAreaCtor();
+    textarea.value = 'Example textarea text';
+
+    textarea.setSelectionRange(2, 10);
+    expect(textarea).toBeInstanceOf(globalThis.HTMLTextAreaElement);
+    expect(getSelectionRangeFromElement(textarea as unknown as HTMLElement)).toEqual({
+      start: 2,
+      end: 10,
+    });
+
+    textarea.setSelectionRange(5, 5);
+    expect(getSelectionRangeFromElement(textarea as unknown as HTMLElement)).toBeNull();
+  });
+
+  it('derives selection range for contenteditable elements', () => {
+    const selectionNode = {} as unknown as Node;
+    const element = {
+      isContentEditable: true,
+      contains: (node: unknown) => node === selectionNode,
+    } as unknown as HTMLElement;
+
+    const selection = {
+      rangeCount: 1,
+      getRangeAt: () => ({
+        startContainer: selectionNode,
+        endContainer: selectionNode,
+        startOffset: 1,
+        endOffset: 8,
+      }),
+    };
+    selectionTestEnv.windowRef.getSelection = () => selection;
+
+    const resolver = vi.fn((_root: HTMLElement, _node: Node, offset: number) => offset);
+
+    expect(getSelectionRangeFromElement(element, resolver)).toEqual({ start: 1, end: 8 });
+    expect(resolver).toHaveBeenCalledWith(element, selectionNode, 1);
+    expect(resolver).toHaveBeenCalledWith(element, selectionNode, 8);
+  });
+
+  it('returns null for non-editable elements', () => {
+    const element = {
+      isContentEditable: false,
+    } as unknown as HTMLElement;
+    expect(getSelectionRangeFromElement(element)).toBeNull();
   });
 });

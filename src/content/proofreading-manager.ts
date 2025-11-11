@@ -20,6 +20,8 @@ import {
 } from '../shared/utils/correction-types.ts';
 import {
   createProofreadingController,
+  getSelectionRangeFromElement,
+  rebaseProofreadResult,
   type ProofreadLifecycleInternalEvent,
   type ProofreadRunContext,
   type ProofreadSelectionRange,
@@ -825,7 +827,7 @@ export class ProofreadingManager {
       if (!result || !selection) {
         return result;
       }
-      return this.rebaseProofreadResult(result, selection, text);
+      return rebaseProofreadResult(result, selection, text);
     });
   }
 
@@ -891,25 +893,6 @@ export class ProofreadingManager {
     }
 
     return { start, end };
-  }
-
-  private rebaseProofreadResult(
-    result: ProofreadResult,
-    range: ProofreadSelectionRange,
-    fullText: string
-  ): ProofreadResult {
-    const prefix = fullText.slice(0, range.start);
-    const suffix = fullText.slice(range.end);
-    const corrections = result.corrections.map((correction) => ({
-      ...correction,
-      startIndex: correction.startIndex + range.start,
-      endIndex: correction.endIndex + range.start,
-    }));
-
-    return {
-      correctedInput: `${prefix}${result.correctedInput}${suffix}`,
-      corrections,
-    };
   }
 
   private handleCorrectionFromPopover(element: HTMLElement, correction: ProofreadCorrection): void {
@@ -1204,48 +1187,9 @@ export class ProofreadingManager {
   }
 
   private getSelectionRange(element: HTMLElement): ProofreadSelectionRange | null {
-    if (element instanceof HTMLTextAreaElement || element instanceof HTMLInputElement) {
-      const start = element.selectionStart;
-      const end = element.selectionEnd;
-      if (start === null || end === null || start === end) {
-        return null;
-      }
-      const textLength = element.value.length;
-      const lower = Math.min(start, end);
-      const upper = Math.max(start, end);
-      const normalizedStart = Math.max(0, Math.min(lower, textLength));
-      const normalizedEnd = Math.max(normalizedStart, Math.min(upper, textLength));
-      return {
-        start: normalizedStart,
-        end: normalizedEnd,
-      };
-    }
-
-    if (!element.isContentEditable) {
-      return null;
-    }
-
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-      return null;
-    }
-
-    const range = selection.getRangeAt(0);
-    if (!element.contains(range.startContainer) || !element.contains(range.endContainer)) {
-      return null;
-    }
-
-    const start = this.getTextOffsetWithin(element, range.startContainer, range.startOffset);
-    const end = this.getTextOffsetWithin(element, range.endContainer, range.endOffset);
-
-    if (start === end) {
-      return null;
-    }
-
-    return {
-      start: Math.min(start, end),
-      end: Math.max(start, end),
-    };
+    return getSelectionRangeFromElement(element, (root, node, offset) =>
+      this.getTextOffsetWithin(root, node, offset)
+    );
   }
 
   private getTextOffsetWithin(root: HTMLElement, node: Node, offset: number): number {

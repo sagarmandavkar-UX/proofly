@@ -16,8 +16,13 @@ import {
   createProofreaderAdapter,
   createProofreadingService,
 } from '../services/proofreader.ts';
-import { createProofreadingController } from '../shared/proofreading/controller.ts';
-import type { UnderlineStyle } from '../shared/types.ts';
+import {
+  createProofreadingController,
+  getSelectionRangeFromElement,
+  rebaseProofreadResult,
+  type ProofreadSelectionRange,
+} from '../shared/proofreading/controller.ts';
+import type { ProofreadCorrection, UnderlineStyle } from '../shared/types.ts';
 import {
   ALL_CORRECTION_TYPES,
   CORRECTION_TYPES,
@@ -33,13 +38,21 @@ import { isMacOS } from '../shared/utils/platform.ts';
 import './style.css';
 import { logger } from '../services/logger.ts';
 import { ensureProofreaderModelReady } from '../services/model-checker.ts';
+import {
+  toSidepanelIssue,
+  type IssuesUpdateMessage,
+  type IssuesUpdatePayload,
+} from '../shared/messages/issues.ts';
 
-const LIVE_TEST_SAMPLE_TEXT = `This are a radnom text with a few classic common, and typicla typso and grammar issus. the Proofreader API hopefuly finds them all, lets see. Getting in the bus yea.`;
+const LIVE_TEST_SAMPLE_TEXT = `i love how Proofly help proofread any of my writting at web in a fully privet way, the user-experience is topnotch and immensly helpful.`;
 
 interface LiveTestControls {
   updateEnabledTypes(types: CorrectionTypeKey[]): void;
   updateColors(config: CorrectionColorConfig): void;
-  proofread(): Promise<void>;
+  proofread(selection?: ProofreadSelectionRange | null): Promise<void>;
+  clearHighlights(): void;
+  applyIssue(issueId: string): void;
+  applyAllIssues(): void;
 }
 
 interface LiveTestAreaOptions {
@@ -357,6 +370,8 @@ async function initOptions() {
         await setStorageValue(STORAGE_KEYS.AUTO_CORRECT, autoCorrectEnabled);
         if (autoCorrectEnabled) {
           void liveTestControls?.proofread();
+        } else {
+          liveTestControls?.clearHighlights();
         }
       });
     }
@@ -474,6 +489,13 @@ async function initOptions() {
       );
     });
 
+    const getLiveTestSelection = (): ProofreadSelectionRange | null => {
+      if (!liveTestEditor || document.activeElement !== liveTestEditor) {
+        return null;
+      }
+      return getSelectionRangeFromElement(liveTestEditor);
+    };
+
     const handlePageShortcut = (event: KeyboardEvent) => {
       if (isRecordingShortcut || autoCorrectEnabled) {
         return;
@@ -484,9 +506,13 @@ async function initOptions() {
         return;
       }
       if (combo && combo === currentProofreadShortcut) {
+        if (document.activeElement !== liveTestEditor) {
+          return;
+        }
         event.preventDefault();
         event.stopPropagation();
-        void liveTestControls?.proofread();
+        const selectionRange = getLiveTestSelection();
+        void liveTestControls?.proofread(selectionRange);
       }
     };
 
@@ -560,6 +586,8 @@ async function initOptions() {
       }
       if (newValue) {
         void liveTestControls?.proofread();
+      } else {
+        liveTestControls?.clearHighlights();
       }
     });
 
@@ -678,6 +706,31 @@ async function initOptions() {
         isAutoCorrectEnabled: () => autoCorrectEnabled,
       }
     );
+
+    // Handle apply issue and apply all messages from sidepanel
+    chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+      if (message.type === 'proofly:apply-issue') {
+        if (message.payload?.elementId && message.payload?.issueId && liveTestControls) {
+          liveTestControls.applyIssue(message.payload.issueId);
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false });
+        }
+        return true;
+      }
+
+      if (message.type === 'proofly:apply-all-issues') {
+        if (liveTestControls) {
+          liveTestControls.applyAllIssues();
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false });
+        }
+        return true;
+      }
+
+      return false;
+    });
   }
 }
 
@@ -688,6 +741,12 @@ async function setupLiveTestArea(
 ): Promise<LiveTestControls | null> {
   const editor = document.getElementById('liveTestEditor');
   if (!editor) return null;
+
+  const pageId = crypto.randomUUID();
+  const elementId = crypto.randomUUID();
+  let issuesRevision = 0;
+  let activeProofreadingCount = 0;
+  const issueLookup = new Map<string, ProofreadCorrection>();
 
   const highlighter = new ContentHighlighter();
   let enabledTypes = new Set<CorrectionTypeKey>(initialEnabledTypes);
@@ -708,13 +767,104 @@ async function setupLiveTestArea(
     return null;
   }
 
+  const reportProofreaderBusy = (busy: boolean) => {
+    if (busy) {
+      activeProofreadingCount++;
+    } else {
+      activeProofreadingCount = Math.max(0, activeProofreadingCount - 1);
+    }
+
+    const shouldBeBusy = activeProofreadingCount > 0;
+
+    void chrome.runtime
+      .sendMessage({ type: 'proofly:proofreader-state', payload: { busy: shouldBeBusy } })
+      .catch((error) => {
+        logger.warn(
+          { error },
+          'Failed to notify background of proofreader state from live test area'
+        );
+      });
+  };
+
+  const emitIssuesUpdate = (corrections: ProofreadCorrection[]) => {
+    const text = editor.textContent || '';
+
+    // Update issue lookup map
+    issueLookup.clear();
+    corrections
+      .filter((correction) => correction.endIndex > correction.startIndex)
+      .forEach((correction, index) => {
+        const issueId = `${correction.startIndex}:${correction.endIndex}:${correction.type ?? 'unknown'}:${index}`;
+        issueLookup.set(issueId, correction);
+      });
+
+    const issues = corrections
+      .filter((correction) => correction.endIndex > correction.startIndex)
+      .map((correction, index) => {
+        const issueId = `${correction.startIndex}:${correction.endIndex}:${correction.type ?? 'unknown'}:${index}`;
+        const originalText = text.slice(
+          Math.max(0, Math.min(correction.startIndex, text.length)),
+          Math.max(0, Math.min(correction.endIndex, text.length))
+        );
+        return toSidepanelIssue(elementId, correction, originalText, issueId);
+      })
+      .filter((issue) => issue.originalText.length > 0 || issue.replacementText.length > 0);
+
+    const payload: IssuesUpdatePayload = {
+      pageId,
+      activeElementId: elementId,
+      activeElementLabel: 'Live Test Area',
+      activeElementKind: 'contenteditable',
+      elements:
+        issues.length > 0
+          ? [
+            {
+              elementId,
+              domId: editor.id || null,
+              kind: 'contenteditable',
+              label: 'Live Test Area',
+              issues,
+              errors: null,
+            },
+          ]
+          : [],
+      revision: ++issuesRevision,
+    };
+
+    const message: IssuesUpdateMessage = {
+      type: 'proofly:issues-update',
+      payload,
+    };
+
+    void chrome.runtime.sendMessage(message).catch((error) => {
+      logger.warn({ error }, 'Failed to send issues update from live test area');
+    });
+
+    if (issues.length === 0) {
+      void chrome.runtime.sendMessage({ type: 'proofly:clear-badge' }).catch((error) => {
+        logger.warn({ error }, 'Failed to request badge clear from live test area');
+      });
+    }
+  };
+
   const controller = createProofreadingController({
-    runProofread: async (_element, text, _context) => {
-      if (!proofreaderService || !proofreaderService.canProofread(text)) {
+    runProofread: async (_element, text, context) => {
+      if (!proofreaderService) {
         return null;
       }
 
-      return proofreaderService.proofread(text);
+      const selection = context.selection ?? null;
+      const targetText = selection ? text.slice(selection.start, selection.end) : text;
+      if (!proofreaderService.canProofread(targetText)) {
+        return null;
+      }
+
+      const result = await proofreaderService.proofread(targetText);
+      if (!result || !selection) {
+        return result;
+      }
+
+      return rebaseProofreadResult(result, selection, text);
     },
     filterCorrections: (_element, corrections, text) => {
       const trimmedLength = text.trimEnd().length;
@@ -729,6 +879,13 @@ async function setupLiveTestArea(
     },
     debounceMs: 1000,
     getElementText: (element) => element.textContent || '',
+    onLifecycleEvent: (event) => {
+      if (event.status === 'start') {
+        reportProofreaderBusy(true);
+      } else if (event.status === 'complete') {
+        reportProofreaderBusy(false);
+      }
+    },
   });
 
   controller.registerTarget({
@@ -740,7 +897,9 @@ async function setupLiveTestArea(
       clearHighlights: () => {
         highlighter.clearHighlights(editor);
       },
-      onCorrectionsChange: () => undefined,
+      onCorrectionsChange: (corrections) => {
+        emitIssuesUpdate(corrections);
+      },
     },
   });
 
@@ -760,13 +919,18 @@ async function setupLiveTestArea(
     }
   });
 
-  const refreshProofreading = async (force = false) => {
+  const refreshProofreading = async (
+    params: { force?: boolean; selection?: ProofreadSelectionRange | null } = {}
+  ) => {
+    const { force = false, selection = null } = params;
     if (!force && !options.isAutoCorrectEnabled()) {
       return;
     }
 
-    controller.resetElement(editor);
-    await controller.proofread(editor, { force: true });
+    await controller.proofread(editor, {
+      force: true,
+      selection: selection ?? undefined,
+    });
   };
 
   const updateEnabledTypes = (types: CorrectionTypeKey[]) => {
@@ -801,10 +965,69 @@ async function setupLiveTestArea(
 
   await refreshProofreading();
 
+  const clearHighlights = () => {
+    controller.resetElement(editor);
+
+    if ('highlights' in CSS) {
+      for (const type of ALL_CORRECTION_TYPES) {
+        const highlight = (CSS.highlights as any).get(type);
+        highlight?.clear?.();
+      }
+    }
+  };
+
+  const applyIssue = (issueId: string) => {
+    const correction = issueLookup.get(issueId);
+    if (!correction) {
+      logger.warn({ issueId }, 'Missing correction for requested issue in live test area');
+      return;
+    }
+
+    controller.applyCorrection(editor, correction);
+  };
+
+  const applyAllIssues = () => {
+    const corrections = controller.getCorrections(editor);
+    if (corrections.length === 0) {
+      logger.info('Fix all requested but no issues are available in live test area');
+      return;
+    }
+
+    // reportProofreaderBusy(true);
+    try {
+      let safetyCounter = 0;
+      while (true) {
+        const currentCorrections = controller.getCorrections(editor);
+        if (currentCorrections.length === 0) {
+          break;
+        }
+
+        if (safetyCounter++ > 100) {
+          logger.warn('Safety limit reached while fixing all issues in live test area');
+          break;
+        }
+
+        const firstCorrection = currentCorrections[0];
+        if (!firstCorrection) {
+          break;
+        }
+
+        controller.applyCorrection(editor, firstCorrection);
+      }
+
+      logger.info('Applied all outstanding issues in live test area');
+    } finally {
+      // reportProofreaderBusy(false);
+    }
+  };
+
   return {
     updateEnabledTypes,
     updateColors,
-    proofread: () => refreshProofreading(true),
+    proofread: (selection) => refreshProofreading({ force: true, selection: selection ?? null }),
+    clearHighlights,
+    applyIssue,
+    applyAllIssues,
   };
 }
 

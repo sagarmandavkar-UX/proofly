@@ -133,6 +133,20 @@ export interface ClearBadgeMessage {
   type: 'proofly:clear-badge';
 }
 
+export interface ProofreaderBusyStateRequestMessage {
+  type: 'proofly:get-proofreader-busy-state';
+  payload: {
+    tabId: number;
+  };
+}
+
+export interface ProofreaderBusyStateResponseMessage {
+  type: 'proofly:proofreader-busy-state';
+  payload: {
+    busy: boolean;
+  };
+}
+
 export type ProoflyMessage =
   | IssuesUpdateMessage
   | ApplyIssueMessage
@@ -142,7 +156,9 @@ export type ProoflyMessage =
   | IssuesStateRequestMessage
   | IssuesStateResponseMessage
   | ClearBadgeMessage
-  | ProofreadRequestMessage;
+  | ProofreadRequestMessage
+  | ProofreaderBusyStateRequestMessage
+  | ProofreaderBusyStateResponseMessage;
 
 export function toSidepanelIssue(
   elementId: string,
