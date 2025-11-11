@@ -24,23 +24,6 @@ function setupWindow() {
   globalRef.window = globalRef.window ?? (globalThis as Window & typeof globalThis);
 }
 
-function mockLanguageDetector(availability: Availability = 'downloadable') {
-  const instance = {
-    detect: vi.fn(),
-    destroy: vi.fn(),
-  };
-
-  const availabilityMock = vi.fn().mockResolvedValue(availability);
-  const createMock = vi.fn().mockResolvedValue(instance);
-
-  globalRef.LanguageDetector = {
-    availability: availabilityMock,
-    create: createMock,
-  };
-
-  return { availabilityMock, createMock, instance };
-}
-
 function mockProofreader(options?: {
   availabilitySequence?: Availability[];
   createImpl?: (options?: { monitor?: (monitor: any) => void }) => Promise<Proofreader>;
@@ -93,7 +76,6 @@ describe('model downloader utilities', () => {
     setupWindow();
     vi.clearAllMocks();
     delete globalRef.Proofreader;
-    delete globalRef.LanguageDetector;
   });
 
   it('formats bytes using readable units', () => {
@@ -136,14 +118,12 @@ describe('model downloader utilities', () => {
     });
   });
 
-  it('downloads proofreader and language detector with progress events', async () => {
+  it('downloads proofreader with progress events', async () => {
     const { instance: proofreaderInstance } = mockProofreader({
       availabilitySequence: ['downloadable'],
     });
-    const { createMock: languageCreate } = mockLanguageDetector('downloadable');
 
     const downloader = createModelDownloader({
-      expectedInputLanguages: ['en'],
       autoRetry: false,
       maxRetries: 1,
       retryDelayMs: 0,
@@ -160,7 +140,6 @@ describe('model downloader utilities', () => {
     expect(
       states.some((state) => state.state === 'downloading' && state.modelType === 'proofreader')
     ).toBe(true);
-    expect(languageCreate).toHaveBeenCalled();
   });
 
   it('prevents concurrent downloads', async () => {
@@ -169,7 +148,6 @@ describe('model downloader utilities', () => {
       availabilitySequence: ['downloadable'],
       createImpl: () => deferred.promise,
     });
-    mockLanguageDetector('downloadable');
 
     const downloader = createModelDownloader();
     const first = downloader.download();
@@ -187,11 +165,9 @@ describe('model downloader utilities', () => {
         throw new Error('fail');
       },
     });
-    mockLanguageDetector('downloadable');
 
     const downloader = createModelDownloader({
       autoRetry: false,
-      expectedInputLanguages: ['en'],
       maxRetries: 0,
       retryDelayMs: 0,
     });

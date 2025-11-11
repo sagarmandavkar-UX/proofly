@@ -17,8 +17,6 @@ export interface ProofreadLifecycleInternalEvent {
   debounceMs?: number;
   forced?: boolean;
   queueLength?: number;
-  language?: string | null;
-  fallbackLanguage?: string;
 }
 
 export interface ProofreadSelectionRange {

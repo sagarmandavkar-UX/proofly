@@ -45,10 +45,10 @@ describe('ensureProofreaderModelReady', () => {
     const availabilityMock = vi.fn().mockResolvedValue('available' as Availability);
     globalRef.Proofreader = { availability: availabilityMock };
 
-    const ready = await ensureProofreaderModelReady(['en']);
+    const ready = await ensureProofreaderModelReady();
 
     expect(ready).toBe(true);
-    expect(availabilityMock).toHaveBeenCalledWith({ expectedInputLanguages: ['en'] });
+    expect(availabilityMock).toHaveBeenCalledWith();
     expect(setStorageValues).toHaveBeenCalledWith({
       [STORAGE_KEYS.MODEL_AVAILABILITY]: 'available',
       [STORAGE_KEYS.PROOFREADER_READY]: true,

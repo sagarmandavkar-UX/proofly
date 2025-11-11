@@ -103,8 +103,8 @@ async function updateBadgeForIssues(
     return;
   }
 
-  await chrome.action.setBadgeBackgroundColor({ color: CLEAR_BADGE_COLOR, tabId }).catch(() => { });
-  await chrome.action.setBadgeText({ text: '', tabId }).catch(() => { });
+  await chrome.action.setBadgeBackgroundColor({ color: CLEAR_BADGE_COLOR, tabId }).catch(() => {});
+  await chrome.action.setBadgeText({ text: '', tabId }).catch(() => {});
   currentBadgeState = 'clear';
 }
 
@@ -171,6 +171,8 @@ function handleProofreaderStateMessage(
   message: ProofreaderStateMessage,
   sender: chrome.runtime.MessageSender
 ): void {
+  logger.info({ message, sender }, 'Handling proofreader state message');
+
   const tabId = sender.tab?.id;
   if (typeof tabId !== 'number') {
     return;
@@ -211,11 +213,6 @@ function handleProofreaderStateMessage(
   void chrome.runtime.sendMessage({
     type: 'proofly:proofreader-state-update',
     payload: { tabId, busy: false },
-  });
-
-  const latestState = issuesByTab.get(tabId) ?? null;
-  void updateBadgeForIssues(tabId, latestState).catch((error) => {
-    logger.error({ error: serializeError(error), tabId }, 'Failed to refresh badge after idle');
   });
 }
 

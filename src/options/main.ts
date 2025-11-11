@@ -818,15 +818,15 @@ async function setupLiveTestArea(
       elements:
         issues.length > 0
           ? [
-            {
-              elementId,
-              domId: editor.id || null,
-              kind: 'contenteditable',
-              label: 'Live Test Area',
-              issues,
-              errors: null,
-            },
-          ]
+              {
+                elementId,
+                domId: editor.id || null,
+                kind: 'contenteditable',
+                label: 'Live Test Area',
+                issues,
+                errors: null,
+              },
+            ]
           : [],
       revision: ++issuesRevision,
     };

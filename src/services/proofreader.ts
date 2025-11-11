@@ -6,7 +6,6 @@ export interface IProofreader {
 }
 
 export interface ProofreaderConfig {
-  expectedInputLanguages: string[];
   includeCorrectionTypes: boolean;
   includeCorrectionExplanations: boolean;
   correctionExplanationLanguage?: string;
@@ -24,7 +23,6 @@ export interface ProofreadingServiceHooks {
 }
 
 export const DEFAULT_PROOFREADER_CONFIG: ProofreaderConfig = {
-  expectedInputLanguages: ['en'],
   includeCorrectionTypes: true,
   includeCorrectionExplanations: true,
   correctionExplanationLanguage: 'en',
@@ -43,9 +41,7 @@ export async function checkProofreaderAvailability(): Promise<Availability> {
     return 'unavailable';
   }
 
-  const availability = await Proofreader.availability({
-    expectedInputLanguages: DEFAULT_PROOFREADER_CONFIG.expectedInputLanguages,
-  });
+  const availability = await Proofreader.availability();
 
   return availability;
 }
@@ -61,7 +57,6 @@ export async function createProofreader(
   }
 
   const proofreader = await Proofreader.create({
-    expectedInputLanguages: config.expectedInputLanguages,
     includeCorrectionTypes: config.includeCorrectionTypes,
     includeCorrectionExplanations: config.includeCorrectionExplanations,
     correctionExplanationLanguage: config.correctionExplanationLanguage,
