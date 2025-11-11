@@ -6,7 +6,8 @@ on:
       - main
     paths:
       - 'test.html'
-      - 'deploy-static-site.yml'
+      - 'deploy-pages.yml'
+      - 'static/**'
   workflow_dispatch:
 
 permissions:
