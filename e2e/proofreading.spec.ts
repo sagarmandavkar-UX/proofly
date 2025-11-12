@@ -549,6 +549,80 @@ describe('Proofly proofreading', () => {
     expect(highlightCount).toBeGreaterThan(0);
   });
 
+  test('manual shortcut proofreads spellcheck-disabled input when auto-correct is enabled', async () => {
+    const testPageUrl = 'http://localhost:8080/test.html';
+    await ensureAutoCorrectEnabled(page, true);
+
+    await page.goto(testPageUrl, { waitUntil: 'networkidle0' });
+
+    await startProofreadControlCapture(page);
+
+    await page.waitForSelector('#test-spellcheck-disabled', { timeout: 10000 });
+    await page.focus('#test-spellcheck-disabled');
+
+    await page.evaluate(() => {
+      const element = document.getElementById(
+        'test-spellcheck-disabled'
+      ) as HTMLInputElement | null;
+      if (!element) {
+        return;
+      }
+      element.value = 'Spellchk is off hre';
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+      element.setSelectionRange(element.value.length, element.value.length);
+    });
+
+    await page.waitForFunction(
+      () => {
+        const globalWindow = window as unknown as {
+          __prooflyControlEvents?: Array<Record<string, any>>;
+        };
+        const events = globalWindow.__prooflyControlEvents || [];
+        const target = document.getElementById(
+          'test-spellcheck-disabled'
+        ) as HTMLInputElement | null;
+        const length = target?.value.length ?? 0;
+        return events.some(
+          (event) =>
+            event?.status === 'ignored' &&
+            event?.reason === 'spellcheck-disabled' &&
+            event?.textLength === length &&
+            event?.elementKind === 'input'
+        );
+      },
+      { timeout: 10000 }
+    );
+
+    const initialHighlights = await getImmediateHighlightCount(page, 'test-spellcheck-disabled');
+    expect(initialHighlights).toBe(0);
+
+    await triggerProofreadShortcut(page);
+
+    const highlightCount = await waitForHighlightCount(
+      page,
+      'test-spellcheck-disabled',
+      (count) => count > 0
+    );
+
+    expect(highlightCount).toBeGreaterThan(0);
+
+    await page.waitForFunction(
+      () => {
+        const globalWindow = window as unknown as {
+          __prooflyControlEvents?: Array<Record<string, any>>;
+        };
+        const events = globalWindow.__prooflyControlEvents || [];
+        return events.some(
+          (event) =>
+            event?.status === 'complete' && event?.forced === true && event?.elementKind === 'input'
+        );
+      },
+      { timeout: 10000 }
+    );
+
+    await page.goto(testPageUrl, { waitUntil: 'networkidle0' });
+  });
+
   test('manual shortcut proofs only selected text when auto-check is disabled and partial text is highlighted', async () => {
     const testPageUrl = 'http://localhost:8080/test.html';
     await ensureAutoCorrectEnabled(page, false);

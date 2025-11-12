@@ -25,7 +25,7 @@ import {
   isProofreadTarget,
   isSpellcheckDisabled,
   shouldMirrorOnElement,
-  shouldProofread,
+  shouldAutoProofread,
 } from '../shared/proofreading/target-selectors.ts';
 import type { ProofreadingTargetHooks } from '../shared/proofreading/types.ts';
 import type { ProofreadCorrection, ProofreadResult, UnderlineStyle } from '../shared/types.ts';
@@ -146,35 +146,42 @@ export class ProofreadingManager {
       if (!(target instanceof HTMLElement)) {
         return;
       }
-      if (!this.isEditableElement(target)) {
-        const reason: ProofreadLifecycleReason =
-          isSpellcheckDisabled(target) && isProofreadTarget(target)
-            ? 'spellcheck-disabled'
-            : 'unsupported-target';
+      if (!this.isProofreadTarget(target)) {
+        this.reportIgnoredElement(target, 'unsupported-target');
+        return;
+      }
+      if (!this.autoCorrectEnabled) {
+        return;
+      }
+      if (!this.shouldAutoProofread(target)) {
+        const reason = this.resolveAutoProofreadIgnoreReason(target);
         this.reportIgnoredElement(target, reason);
         return;
       }
       this.clearElementMessage(target);
       this.registerElement(target);
-      if (shouldMirrorOnElement(target)) {
-        return;
-      }
-      if (this.shouldAutoProofread()) {
-        this.controller.scheduleProofread(target);
-      }
+      this.controller.scheduleProofread(target);
     };
 
     const handleFocus = (event: Event) => {
       const target = event.target as HTMLElement;
-      if (!this.isEditableElement(target)) {
+      if (!this.isProofreadTarget(target)) {
+        this.reportIgnoredElement(target, 'unsupported-target');
         return;
       }
+      // attach element listeners early to enable manual trigger on ignored elements
       this.activeElement = target;
       this.registerElement(target);
-      if (this.shouldAutoProofread()) {
+      if (this.autoCorrectEnabled) {
+        if (!this.shouldAutoProofread(target)) {
+          const reason = this.resolveAutoProofreadIgnoreReason(target);
+          this.reportIgnoredElement(target, reason);
+          return;
+        }
+
         void this.controller.proofread(target);
+        this.emitIssuesUpdate();
       }
-      this.emitIssuesUpdate();
     };
 
     const handleBlur = (event: Event) => {
@@ -194,12 +201,19 @@ export class ProofreadingManager {
         mutation.addedNodes.forEach((node) => {
           if (node.nodeType !== Node.ELEMENT_NODE) return;
           const element = node as HTMLElement;
-          if (this.isEditableElement(element)) {
-            this.registerElement(element);
-            if (this.shouldAutoProofread()) {
-              void this.controller.proofread(element);
-            }
+          if (!this.isProofreadTarget(element)) {
+            return;
           }
+          if (!this.autoCorrectEnabled) {
+            return;
+          }
+          if (!this.shouldAutoProofread(element)) {
+            const reason = this.resolveAutoProofreadIgnoreReason(element);
+            this.reportIgnoredElement(element, reason);
+            return;
+          }
+          this.registerElement(element);
+          void this.controller.proofread(element);
         });
       }
     });
@@ -261,9 +275,15 @@ export class ProofreadingManager {
     if (!session) {
       session = new TargetSession(element, {
         onNeedProofread: () => {
-          if (this.shouldAutoProofread()) {
-            this.controller.scheduleProofread(element);
+          if (!this.autoCorrectEnabled) {
+            return;
           }
+          if (!this.shouldAutoProofread(element)) {
+            const reason = this.resolveAutoProofreadIgnoreReason(element);
+            this.reportIgnoredElement(element, reason);
+            return;
+          }
+          void this.controller.proofread(element);
         },
         onUnderlineClick: (issueId, pageRect) => {
           this.activeSessionElement = element;
@@ -955,14 +975,10 @@ export class ProofreadingManager {
 
   private refreshCorrectionsForTrackedElements(): void {
     for (const element of this.registeredElements) {
-      if (this.isEditableElement(element)) {
+      if (this.shouldAutoProofread(element)) {
         void this.controller.proofread(element);
       }
     }
-  }
-
-  private shouldAutoProofread(): boolean {
-    return this.autoCorrectEnabled;
   }
 
   private setupShortcutListener(): void {
@@ -971,11 +987,12 @@ export class ProofreadingManager {
     }
 
     this.shortcutKeydownHandler = (event: KeyboardEvent) => {
-      if (!this.autoCorrectEnabled && this.matchesShortcut(event)) {
-        event.preventDefault();
-        event.stopPropagation();
-        void this.proofreadActiveElement();
+      if (!this.matchesShortcut(event)) {
+        return;
       }
+      event.preventDefault();
+      event.stopPropagation();
+      void this.proofreadActiveElement();
     };
 
     document.addEventListener('keydown', this.shortcutKeydownHandler, true);
@@ -1031,8 +1048,23 @@ export class ProofreadingManager {
     return [...modifiers, normalizedKey].join('+');
   }
 
-  private isEditableElement(element: HTMLElement): boolean {
-    return shouldProofread(element);
+  private isProofreadTarget(element: HTMLElement): boolean {
+    return isProofreadTarget(element);
+  }
+
+  private shouldAutoProofread(element: HTMLElement): boolean {
+    return shouldAutoProofread(element);
+  }
+
+  private resolveAutoProofreadIgnoreReason(element: HTMLElement): ProofreadLifecycleReason {
+    if (isSpellcheckDisabled(element)) {
+      return 'spellcheck-disabled';
+    }
+    const ancestorWithSpellcheckDisabled = element.closest('[spellcheck="false"]');
+    if (ancestorWithSpellcheckDisabled) {
+      return 'spellcheck-disabled';
+    }
+    return 'unsupported-target';
   }
 
   private getElementText(element: HTMLElement): string {

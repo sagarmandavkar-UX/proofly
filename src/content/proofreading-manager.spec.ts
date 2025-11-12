@@ -271,4 +271,25 @@ describe('ProofreadingManager selection helpers', () => {
     );
     expect(rebased.corrections[0]).toMatchObject({ startIndex: 5, endIndex: 11 });
   });
+
+  it('forces proofread when manually triggered through shortcut', async () => {
+    const manager = new ProofreadingManager();
+    const element = createElement('textarea');
+
+    (manager as unknown as { activeElement: HTMLElement | null }).activeElement =
+      element as unknown as HTMLElement;
+    (
+      manager as unknown as { getSelectionRange: () => { start: number; end: number } | null }
+    ).getSelectionRange = vi.fn().mockReturnValue({ start: 0, end: 5 });
+
+    await manager.proofreadActiveElement();
+
+    expect(mockControllerInstance.proofread).toHaveBeenCalledWith(
+      element,
+      expect.objectContaining({
+        force: true,
+        selection: { start: 0, end: 5 },
+      })
+    );
+  });
 });

@@ -189,6 +189,7 @@ export class ProofreadingController {
     const hasSelection = selectionRange !== null;
     const textLength = hasSelection ? selectionRange.end - selectionRange.start : text.length;
     const executionId = crypto.randomUUID();
+    const forced = Boolean(options.force);
 
     this.reportLifecycle?.({
       status: 'queued',
@@ -196,7 +197,7 @@ export class ProofreadingController {
       executionId,
       textLength,
       debounceMs: this.debounceMs,
-      forced: Boolean(options.force),
+      forced,
     });
 
     // Skip proofreading if text hasn't changed and not forced
@@ -207,6 +208,7 @@ export class ProofreadingController {
         executionId,
         textLength,
         reason: 'unchanged-text',
+        forced,
       });
       return;
     }
@@ -222,6 +224,7 @@ export class ProofreadingController {
         executionId,
         textLength,
         reason: 'empty-text',
+        forced,
       });
       return;
     }
@@ -237,6 +240,7 @@ export class ProofreadingController {
         executionId,
         textLength,
         reason: 'restored-from-history',
+        forced,
       });
       return;
     }
@@ -246,6 +250,7 @@ export class ProofreadingController {
       element,
       executionId,
       textLength,
+      forced,
     });
 
     try {
@@ -263,6 +268,7 @@ export class ProofreadingController {
           detectedIssueCount: 0,
           correctionCount: 0,
           error: 'stale-text',
+          forced,
         });
         return;
       }
@@ -277,6 +283,7 @@ export class ProofreadingController {
           textLength,
           detectedIssueCount: 0,
           correctionCount: 0,
+          forced,
         });
         return;
       }
@@ -295,6 +302,7 @@ export class ProofreadingController {
         textLength,
         detectedIssueCount: rawCorrections.length,
         correctionCount: filtered.length,
+        forced,
       });
     } catch (error) {
       if ((error as DOMException)?.name !== 'AbortError') {
@@ -306,6 +314,7 @@ export class ProofreadingController {
           executionId,
           textLength,
           error: error instanceof Error ? error.message : String(error),
+          forced,
         });
         this.reportLifecycle?.({
           status: 'complete',
@@ -314,6 +323,7 @@ export class ProofreadingController {
           textLength,
           correctionCount: 0,
           error: error instanceof Error ? error.message : String(error),
+          forced,
         });
         throw error;
       }
@@ -323,6 +333,7 @@ export class ProofreadingController {
         executionId,
         textLength,
         error: 'abort',
+        forced,
       });
       this.reportLifecycle?.({
         status: 'complete',
@@ -331,6 +342,7 @@ export class ProofreadingController {
         textLength,
         correctionCount: 0,
         error: 'abort',
+        forced,
       });
     }
   }

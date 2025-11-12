@@ -1,9 +1,9 @@
 const TEXT_INPUT_SELECTORS = ['input:not([type])', 'input[type="text"]'] as const;
-const TEXTAREA_SELECTOR = 'textarea';
+const TEXTAREA_SELECTORS = ['textarea:not([role="textbox"])', '[role="textbox"]'] as const;
 const CONTENTEDITABLE_SELECTOR = '[contenteditable]:not([contenteditable="false"])';
 
 export const PROOFREAD_TARGET_SELECTORS = [
-  TEXTAREA_SELECTOR,
+  TEXTAREA_SELECTORS,
   ...TEXT_INPUT_SELECTORS,
   CONTENTEDITABLE_SELECTOR,
 ] as const;
@@ -58,8 +58,74 @@ export function isWritingSuggestionsDisabled(element: Element): boolean {
   return typeof value === 'string' && value.trim().toLowerCase() === 'false';
 }
 
-export function shouldProofread(element: Element): element is HTMLElement {
+export function isHidden(element: Element): boolean {
+  if (!(element instanceof HTMLElement)) {
+    return false;
+  }
+
+  const value = element.getAttribute('aria-hidden');
+  return typeof value === 'string' && value.trim().toLowerCase() === 'true';
+}
+
+export function isReadonly(element: Element): boolean {
+  if (!(element instanceof HTMLElement)) {
+    return false;
+  }
+
+  const ariaReadonlyValue = element.getAttribute('aria-readonly');
+  const readonlyAttr = element.getAttribute('readonly');
+
+  return (
+    readonlyAttr !== null ||
+    (typeof ariaReadonlyValue === 'string' && ariaReadonlyValue.trim().toLowerCase() === 'true')
+  );
+}
+
+export function isDisabled(element: Element): boolean {
+  if (!(element instanceof HTMLElement)) {
+    return false;
+  }
+
+  const ariaDisabledValue = element.getAttribute('aria-disabled');
+  const disabledAttr = element.getAttribute('disabled');
+
+  return (
+    disabledAttr !== null ||
+    (typeof ariaDisabledValue === 'string' && ariaDisabledValue.trim().toLowerCase() === 'true')
+  );
+}
+
+export function isPresentation(element: Element): boolean {
+  if (!(element instanceof HTMLElement)) {
+    return false;
+  }
+
+  const role = element.getAttribute('role');
+
+  return (
+    typeof role === 'string' &&
+    (role.trim().toLowerCase() === 'presentation' || role.trim().toLowerCase() === 'none')
+  );
+}
+
+export function shouldAutoProofread(element: Element): element is HTMLElement {
   if (!isProofreadTarget(element)) {
+    return false;
+  }
+
+  if (isDisabled(element)) {
+    return false;
+  }
+
+  if (isHidden(element)) {
+    return false;
+  }
+
+  if (isReadonly(element)) {
+    return false;
+  }
+
+  if (isPresentation(element)) {
     return false;
   }
 

@@ -7,7 +7,7 @@ import {
   isTextInput,
   isWritingSuggestionsDisabled,
   shouldMirrorOnElement,
-  shouldProofread,
+  shouldAutoProofread,
 } from './target-selectors.ts';
 
 class MockElement {
@@ -41,8 +41,16 @@ class MockElement {
   }
 
   private matchesSingle(selector: string) {
-    if (selector === 'textarea') {
-      return this.tagName === 'TEXTAREA';
+    if (selector === 'textarea:not([role="textbox"])') {
+      if (this.tagName !== 'TEXTAREA') {
+        return false;
+      }
+      const role = this.getAttribute('role');
+      return !(typeof role === 'string' && role.trim().toLowerCase() === 'textbox');
+    }
+    if (selector === '[role="textbox"]') {
+      const role = this.getAttribute('role');
+      return typeof role === 'string' && role.trim().toLowerCase() === 'textbox';
     }
     if (selector === 'input:not([type])') {
       return this.tagName === 'INPUT' && !this.getAttribute('type');
@@ -113,9 +121,9 @@ describe('proofread target selectors', () => {
 
   it('determines when an element should be proofread', () => {
     const el = new MockElement('textarea');
-    expect(shouldProofread(el as unknown as Element)).toBe(true);
+    expect(shouldAutoProofread(el as unknown as Element)).toBe(true);
     el.setAttribute('spellcheck', 'false');
-    expect(shouldProofread(el as unknown as Element)).toBe(false);
+    expect(shouldAutoProofread(el as unknown as Element)).toBe(false);
   });
 
   it('ignores elements when a spellcheck-disabled ancestor exists', () => {
@@ -125,7 +133,7 @@ describe('proofread target selectors', () => {
     const child = new MockElement('textarea');
     child.parentElement = wrapper;
 
-    expect(shouldProofread(child as unknown as Element)).toBe(false);
+    expect(shouldAutoProofread(child as unknown as Element)).toBe(false);
   });
 
   it('detects mirror candidates and text inputs', () => {
