@@ -293,3 +293,178 @@ describe('ProofreadingManager selection helpers', () => {
     );
   });
 });
+
+describe('ProofreadingManager contenteditable ancestor detection', () => {
+  let manager: ProofreadingManager;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    manager = new ProofreadingManager();
+  });
+
+  it('returns false when element has no parent', () => {
+    const element = {
+      parentElement: null,
+    } as unknown as HTMLElement;
+
+    const result = (
+      manager as unknown as {
+        hasRegisteredContentEditableAncestor: (element: HTMLElement) => boolean;
+      }
+    ).hasRegisteredContentEditableAncestor(element);
+
+    expect(result).toBe(false);
+  });
+
+  it('returns false when element has no contenteditable ancestor', () => {
+    const parent = {
+      isContentEditable: false,
+      parentElement: null,
+    } as unknown as HTMLElement;
+
+    const element = {
+      parentElement: parent,
+    } as unknown as HTMLElement;
+
+    const result = (
+      manager as unknown as {
+        hasRegisteredContentEditableAncestor: (element: HTMLElement) => boolean;
+      }
+    ).hasRegisteredContentEditableAncestor(element);
+
+    expect(result).toBe(false);
+  });
+
+  it('returns true when element has contenteditable ancestor that is registered', () => {
+    const grandparent = {
+      isContentEditable: true,
+      parentElement: null,
+    } as unknown as HTMLElement;
+
+    const parent = {
+      isContentEditable: false,
+      parentElement: grandparent,
+    } as unknown as HTMLElement;
+
+    const element = {
+      parentElement: parent,
+    } as unknown as HTMLElement;
+
+    // Register the contenteditable ancestor
+    const registeredElements = (manager as unknown as { registeredElements: Set<HTMLElement> })
+      .registeredElements;
+    registeredElements.add(grandparent);
+
+    const result = (
+      manager as unknown as {
+        hasRegisteredContentEditableAncestor: (element: HTMLElement) => boolean;
+      }
+    ).hasRegisteredContentEditableAncestor(element);
+
+    expect(result).toBe(true);
+  });
+
+  it('returns true when element has unregistered contenteditable ancestor', () => {
+    const parent = {
+      isContentEditable: true,
+      parentElement: null,
+    } as unknown as HTMLElement;
+
+    const element = {
+      parentElement: parent,
+    } as unknown as HTMLElement;
+
+    // Don't register the parent
+    const result = (
+      manager as unknown as {
+        hasRegisteredContentEditableAncestor: (element: HTMLElement) => boolean;
+      }
+    ).hasRegisteredContentEditableAncestor(element);
+
+    expect(result).toBe(true);
+  });
+
+  it('returns true for nested contenteditable with registered outer ancestor', () => {
+    const outerDiv = {
+      isContentEditable: true,
+      parentElement: null,
+    } as unknown as HTMLElement;
+
+    const innerDiv = {
+      isContentEditable: true,
+      parentElement: outerDiv,
+    } as unknown as HTMLElement;
+
+    const paragraph = {
+      isContentEditable: true,
+      parentElement: innerDiv,
+    } as unknown as HTMLElement;
+
+    // Register only the outer div (simulating rich text editor structure)
+    const registeredElements = (manager as unknown as { registeredElements: Set<HTMLElement> })
+      .registeredElements;
+    registeredElements.add(outerDiv);
+
+    const result = (
+      manager as unknown as {
+        hasRegisteredContentEditableAncestor: (element: HTMLElement) => boolean;
+      }
+    ).hasRegisteredContentEditableAncestor(paragraph);
+
+    expect(result).toBe(true);
+  });
+
+  it('skips non-contenteditable intermediate elements', () => {
+    const contentEditableDiv = {
+      isContentEditable: true,
+      parentElement: null,
+    } as unknown as HTMLElement;
+
+    const regularDiv = {
+      isContentEditable: false,
+      parentElement: contentEditableDiv,
+    } as unknown as HTMLElement;
+
+    const regularSpan = {
+      isContentEditable: false,
+      parentElement: regularDiv,
+    } as unknown as HTMLElement;
+
+    const paragraph = {
+      isContentEditable: true,
+      parentElement: regularSpan,
+    } as unknown as HTMLElement;
+
+    // Register the top-level contenteditable div
+    const registeredElements = (manager as unknown as { registeredElements: Set<HTMLElement> })
+      .registeredElements;
+    registeredElements.add(contentEditableDiv);
+
+    const result = (
+      manager as unknown as {
+        hasRegisteredContentEditableAncestor: (element: HTMLElement) => boolean;
+      }
+    ).hasRegisteredContentEditableAncestor(paragraph);
+
+    expect(result).toBe(true);
+  });
+
+  it('returns true when immediate parent is contenteditable', () => {
+    const parent = {
+      isContentEditable: true,
+      parentElement: null,
+    } as unknown as HTMLElement;
+
+    const child = {
+      parentElement: parent,
+    } as unknown as HTMLElement;
+
+    const result = (
+      manager as unknown as {
+        hasRegisteredContentEditableAncestor: (element: HTMLElement) => boolean;
+      }
+    ).hasRegisteredContentEditableAncestor(child);
+
+    expect(result).toBe(true);
+  });
+});

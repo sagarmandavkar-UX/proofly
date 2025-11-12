@@ -95,6 +95,16 @@ export function isDisabled(element: Element): boolean {
   );
 }
 
+export function isGrammarlyDisabled(element: Element): boolean {
+  if (!(element instanceof HTMLElement)) {
+    return false;
+  }
+
+  const grammarlyAttr = element.dataset?.gramm;
+
+  return typeof grammarlyAttr === 'string' && grammarlyAttr.trim().toLowerCase() === 'false';
+}
+
 export function isPresentation(element: Element): boolean {
   if (!(element instanceof HTMLElement)) {
     return false;
@@ -142,6 +152,10 @@ export function shouldAutoProofread(element: Element): element is HTMLElement {
   }
 
   if (hasSpellcheckDisabledAncestor(element)) {
+    return false;
+  }
+
+  if (isGrammarlyDisabled(element)) {
     return false;
   }
 

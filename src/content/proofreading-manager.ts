@@ -176,6 +176,8 @@ export class ProofreadingManager {
         if (!this.shouldAutoProofread(target)) {
           const reason = this.resolveAutoProofreadIgnoreReason(target);
           this.reportIgnoredElement(target, reason);
+          this.activeElement = null;
+          this.registeredElements.delete(target);
           return;
         }
 
@@ -188,6 +190,7 @@ export class ProofreadingManager {
       const target = event.target as HTMLElement;
       if (this.activeElement === target) {
         this.activeElement = null;
+        this.registeredElements.delete(target);
       }
     };
 
@@ -202,6 +205,9 @@ export class ProofreadingManager {
           if (node.nodeType !== Node.ELEMENT_NODE) return;
           const element = node as HTMLElement;
           if (!this.isProofreadTarget(element)) {
+            return;
+          }
+          if (this.hasRegisteredContentEditableAncestor(element)) {
             return;
           }
           if (!this.autoCorrectEnabled) {
@@ -992,7 +998,11 @@ export class ProofreadingManager {
       }
       event.preventDefault();
       event.stopPropagation();
-      void this.proofreadActiveElement();
+      if (this.activeElement) {
+        void this.proofreadActiveElement();
+      } else {
+        void this.controller.proofread(event.target as HTMLElement);
+      }
     };
 
     document.addEventListener('keydown', this.shortcutKeydownHandler, true);
@@ -1054,6 +1064,17 @@ export class ProofreadingManager {
 
   private shouldAutoProofread(element: HTMLElement): boolean {
     return shouldAutoProofread(element);
+  }
+
+  private hasRegisteredContentEditableAncestor(element: HTMLElement): boolean {
+    let parent = element.parentElement;
+    while (parent) {
+      if (this.registeredElements.has(parent) || parent.isContentEditable) {
+        return true;
+      }
+      parent = parent.parentElement;
+    }
+    return false;
   }
 
   private resolveAutoProofreadIgnoreReason(element: HTMLElement): ProofreadLifecycleReason {

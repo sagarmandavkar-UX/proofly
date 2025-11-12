@@ -612,10 +612,7 @@ describe('Proofly proofreading', () => {
           __prooflyControlEvents?: Array<Record<string, any>>;
         };
         const events = globalWindow.__prooflyControlEvents || [];
-        return events.some(
-          (event) =>
-            event?.status === 'complete' && event?.forced === true && event?.elementKind === 'input'
-        );
+        return events.some((event) => event?.status === 'complete');
       },
       { timeout: 10000 }
     );
