@@ -11,6 +11,8 @@ import {
 } from '../shared/utils/storage.ts';
 import { STORAGE_KEYS, STORAGE_DEFAULTS } from '../shared/constants.ts';
 import { ContentHighlighter } from '../content/components/content-highlighter.ts';
+import type { CorrectionPopover } from '../content/components/correction-popover.ts';
+import { createUniqueId } from '../content/utils.ts';
 import {
   createProofreader,
   createProofreaderAdapter,
@@ -742,13 +744,16 @@ async function setupLiveTestArea(
   const editor = document.getElementById('liveTestEditor');
   if (!editor) return null;
 
-  const pageId = crypto.randomUUID();
-  const elementId = crypto.randomUUID();
+  const pageId = createUniqueId('options-page');
+  const elementId = createUniqueId('options-element');
   let issuesRevision = 0;
   let activeProofreadingCount = 0;
   const issueLookup = new Map<string, ProofreadCorrection>();
 
   const highlighter = new ContentHighlighter();
+  const popover = document.createElement('proofly-correction-popover') as CorrectionPopover;
+  document.body.appendChild(popover);
+  highlighter.setPopover(popover);
   let enabledTypes = new Set<CorrectionTypeKey>(initialEnabledTypes);
   let colorConfig = structuredClone(initialColorConfig);
   let colorThemes = buildCorrectionColorThemes(colorConfig);

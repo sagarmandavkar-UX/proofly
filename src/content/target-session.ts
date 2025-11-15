@@ -14,6 +14,7 @@ export type Issue = {
   start: number;
   end: number;
   type: IssueType;
+  label: string;
 };
 
 export type IssueColorPalette = CorrectionColorThemeMap;
@@ -43,6 +44,7 @@ export class TargetSession {
   private readonly debouncedNeedProofread: (value: string) => void;
 
   private attached = false;
+  private overlayMounted = false;
   private needsLayout = false;
   private needsValue = false;
   private needsRender = false;
@@ -116,20 +118,7 @@ export class TargetSession {
     if (!node || !node.classList.contains('u')) {
       return;
     }
-    const issueId = node.dataset.issueId;
-    if (!issueId) {
-      return;
-    }
-    const rect = node.getBoundingClientRect();
-    const rectHeightCorrection = 10;
-    const pageRect = new DOMRect(
-      rect.left,
-      rect.top + rectHeightCorrection,
-      rect.width,
-      rect.height
-    );
-    this.setActiveIssue(issueId);
-    this.hooks.onUnderlineClick(issueId, pageRect);
+    this.activateIssueFromNode(node);
   };
 
   private readonly handleUnderlineDoubleClick = (event: MouseEvent) => {
@@ -159,6 +148,45 @@ export class TargetSession {
     this.hooks.onUnderlineDoubleClick(issueId, issue);
   };
 
+  private readonly handleUnderlineKeyDown = (event: KeyboardEvent) => {
+    if (this.autofixOnDoubleClick) {
+      return;
+    }
+
+    const node = event.target as HTMLElement | null;
+    if (!node || !node.classList.contains('u')) {
+      return;
+    }
+
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+
+    event.preventDefault();
+    this.activateIssueFromNode(node);
+  };
+
+  private activateIssueFromNode(node: HTMLElement): void {
+    if (!this.hooks.onUnderlineClick) {
+      return;
+    }
+
+    const issueId = node.dataset.issueId;
+    if (!issueId) {
+      return;
+    }
+    const rect = node.getBoundingClientRect();
+    const rectHeightCorrection = 10;
+    const pageRect = new DOMRect(
+      rect.left,
+      rect.top + rectHeightCorrection,
+      rect.width,
+      rect.height
+    );
+    this.setActiveIssue(issueId);
+    this.hooks.onUnderlineClick(issueId, pageRect);
+  }
+
   constructor(
     private readonly target: HTMLTextAreaElement | HTMLInputElement,
     hooks?: Hooks
@@ -167,6 +195,10 @@ export class TargetSession {
     this.mirror = createMirror(target);
     this.renderer = new UnderlineRenderer(this.overlay.elements.underlines);
     this.hooks = hooks ?? {};
+    this.overlay.elements.container.insertBefore(
+      this.mirror.element,
+      this.overlay.elements.underlines
+    );
     this.debouncedNeedProofread = debounce((value: string) => {
       this.hooks.onNeedProofread?.(value);
     }, PROOFREAD_DEBOUNCE_MS);
@@ -177,9 +209,7 @@ export class TargetSession {
       return;
     }
 
-    this.overlay.attach();
-    const { container, underlines } = this.overlay.elements;
-    container.insertBefore(this.mirror.element, underlines);
+    const { underlines } = this.overlay.elements;
 
     this.target.addEventListener('input', this.handleInput);
     this.target.addEventListener('scroll', this.handleScroll, {
@@ -190,6 +220,7 @@ export class TargetSession {
     underlines.addEventListener('wheel', this.handleOverlayWheel, {
       passive: false,
     });
+    underlines.addEventListener('keydown', this.handleUnderlineKeyDown);
     window.addEventListener('scroll', this.handleWindowScroll, true);
     window.addEventListener('resize', this.handleWindowResize);
 
@@ -226,7 +257,6 @@ export class TargetSession {
       return;
     }
     this.raf.cancel();
-    this.renderer.clear();
     this.activeIssueId = null;
     this.overlay.elements.underlines.removeEventListener('click', this.handleUnderlineClick);
     this.overlay.elements.underlines.removeEventListener(
@@ -234,6 +264,7 @@ export class TargetSession {
       this.handleUnderlineDoubleClick
     );
     this.overlay.elements.underlines.removeEventListener('wheel', this.handleOverlayWheel);
+    this.overlay.elements.underlines.removeEventListener('keydown', this.handleUnderlineKeyDown);
     this.target.removeEventListener('input', this.handleInput);
     this.target.removeEventListener('scroll', this.handleScroll);
     window.removeEventListener('scroll', this.handleWindowScroll, true);
@@ -242,7 +273,7 @@ export class TargetSession {
     this.mutationObserver?.disconnect();
     this.resizeObserver = null;
     this.mutationObserver = null;
-    this.overlay.detach();
+    this.detachOverlay();
     this.attached = false;
   }
 
@@ -250,6 +281,11 @@ export class TargetSession {
     this.issues = issues;
     if (this.activeIssueId && !issues.some((issue) => issue.id === this.activeIssueId)) {
       this.activeIssueId = null;
+    }
+    if (issues.length > 0) {
+      this.ensureOverlayMounted();
+    } else {
+      this.detachOverlay();
     }
     this.needsMeasurement = true;
     this.needsRender = true;
@@ -288,6 +324,10 @@ export class TargetSession {
       return;
     }
 
+    if (!this.overlayMounted) {
+      return;
+    }
+
     if (this.needsLayout) {
       this.syncLayout();
       this.needsLayout = false;
@@ -308,6 +348,28 @@ export class TargetSession {
       this.render();
       this.needsRender = false;
     }
+  }
+
+  private ensureOverlayMounted(): void {
+    if (this.overlayMounted) {
+      return;
+    }
+    this.overlay.attach();
+    this.overlayMounted = true;
+    this.needsLayout = true;
+    this.needsValue = true;
+    this.needsMeasurement = true;
+    this.needsRender = true;
+    this.raf.schedule();
+  }
+
+  private detachOverlay(): void {
+    if (!this.overlayMounted) {
+      return;
+    }
+    this.renderer.clear();
+    this.overlay.detach();
+    this.overlayMounted = false;
   }
 
   private syncLayout(): void {
@@ -371,6 +433,7 @@ export class TargetSession {
           type: issue.type,
           rectIndex: index,
           rect: overlayRect,
+          label: issue.label,
         });
         index += 1;
       }

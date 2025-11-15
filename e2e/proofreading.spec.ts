@@ -23,6 +23,8 @@ import {
   getImmediateHighlightCount,
   startProofreadControlCapture,
   triggerProofreadShortcut,
+  waitForHighlighterPresence,
+  hasHighlighterHost,
 } from './helpers/utils';
 import { Page, type KeyInput } from 'puppeteer-core';
 
@@ -120,6 +122,7 @@ describe('Proofly proofreading', () => {
 
     const highlightCount = await getImmediateHighlightCount(page, 'test-email');
     expect(highlightCount).toBe(0);
+    expect(await hasHighlighterHost(page, 'test-email')).toBe(false);
   });
 
   test('should not trigger proofreading on spellcheck-disabled text input', async () => {
@@ -328,6 +331,7 @@ describe('Proofly proofreading', () => {
     await page.goto('http://localhost:8080/test.html', { waitUntil: 'networkidle0' });
 
     await page.waitForSelector('#test-input', { timeout: 10000 });
+    await waitForHighlighterPresence(page, 'test-input', { present: false });
     await page.focus('#test-input');
 
     await page.evaluate(() => {
@@ -337,7 +341,18 @@ describe('Proofly proofreading', () => {
       }
     });
 
+    expect(await hasHighlighterHost(page, 'test-input')).toBe(false);
+
     let remaining = await waitForHighlightCount(page, 'test-input', (count) => count > 0);
+    await waitForHighlighterPresence(page, 'test-input', { present: true });
+
+    await page.waitForFunction(
+      () => {
+        const popover = document.querySelector('proofly-correction-popover');
+        return popover?.isConnected ?? false;
+      },
+      { timeout: 10000 }
+    );
 
     while (remaining > 0) {
       const highlights = await collectHighlightDetails(page, 'test-input');
@@ -366,6 +381,7 @@ describe('Proofly proofreading', () => {
 
     const finalHighlights = await collectHighlightDetails(page, 'test-input');
     expect(finalHighlights.length).toBe(0);
+    await waitForHighlighterPresence(page, 'test-input', { present: false });
 
     const browser = getBrowser();
     const extensionId = getExtensionId();
@@ -376,6 +392,14 @@ describe('Proofly proofreading', () => {
     );
     console.log({ badgeText });
     expect(badgeText === null || badgeText === '' || badgeText === ' ').toBe(true);
+
+    await page.waitForFunction(
+      () => {
+        const popover = document.querySelector('proofly-correction-popover');
+        return !popover;
+      },
+      { timeout: 10000 }
+    );
   });
 
   test('should apply autofix on double-click when enabled', async () => {

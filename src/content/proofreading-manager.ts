@@ -8,6 +8,7 @@ import { STORAGE_KEYS, STORAGE_DEFAULTS } from '../shared/constants.ts';
 import {
   buildCorrectionColorThemes,
   getActiveCorrectionColors,
+  getCorrectionTypeColor,
   setActiveCorrectionColors,
   type CorrectionColorConfig,
   type CorrectionColorThemeMap,
@@ -34,6 +35,7 @@ import {
   type Issue as SessionIssue,
   type IssueColorPalette,
 } from './target-session.ts';
+import { createUniqueId } from './utils.ts';
 import { isMacOS } from '../shared/utils/platform.ts';
 import {
   normalizeIssueLabel,
@@ -64,7 +66,7 @@ export class ProofreadingManager {
   private observer: MutationObserver | null = null;
   private activeElement: HTMLElement | null = null;
   private activeSessionElement: HTMLElement | null = null;
-  private readonly pageId = crypto.randomUUID();
+  private readonly pageId = createUniqueId('proofread-page');
   private readonly elementIds = new WeakMap<HTMLElement, string>();
   private readonly elementLookup = new Map<string, HTMLElement>();
   private readonly elementCorrections = new Map<HTMLElement, ProofreadCorrection[]>();
@@ -102,38 +104,69 @@ export class ProofreadingManager {
   private readonly isMacPlatform = isMacOS();
 
   async initialize(): Promise<void> {
-    this.createPopover();
     await this.initializeCorrectionPreferences();
     await this.initializeProofreadPreferences();
     this.observeEditableElements();
     this.emitIssuesUpdate();
+    this.updatePopoverVisibility();
     logger.info('Proofreading manager ready');
   }
 
-  private createPopover(): void {
-    if (document.querySelector('proofly-correction-popover')) {
-      this.popover = document.querySelector('proofly-correction-popover') as CorrectionPopover;
-    } else {
-      this.popover = document.createElement('proofly-correction-popover') as CorrectionPopover;
-      document.body.appendChild(this.popover);
+  private ensurePopover(): void {
+    if (this.popover) {
+      // Popover already exists, no need to recreate or rebind listeners
+      return;
     }
+
+    let popover = document.querySelector('proofly-correction-popover') as CorrectionPopover | null;
+    if (!popover) {
+      popover = document.createElement('proofly-correction-popover') as CorrectionPopover;
+      document.body.appendChild(popover);
+    }
+
+    this.popover = popover;
+    this.highlighter.setPopover(this.popover);
 
     this.cleanupHandler(this.popoverHideCleanup);
-
-    if (this.popover) {
-      const handlePopoverHide = () => {
-        this.highlighter.clearSelection();
-        if (this.activeSessionElement) {
-          const session = this.elementSessions.get(this.activeSessionElement);
-          session?.clearActiveIssue();
-          this.activeSessionElement = null;
-        }
-      };
-      this.popover.addEventListener('proofly:popover-hide', handlePopoverHide);
-      this.popoverHideCleanup = () => {
-        this.popover?.removeEventListener('proofly:popover-hide', handlePopoverHide);
-      };
+    if (!this.popover) {
+      // Popover might have been cleared by highlighter.setPopover(null)
+      return;
     }
+
+    const handlePopoverHide = () => {
+      this.highlighter.clearSelection();
+      if (this.activeSessionElement) {
+        const session = this.elementSessions.get(this.activeSessionElement);
+        session?.clearActiveIssue();
+        this.activeSessionElement = null;
+      }
+    };
+    this.popover.addEventListener('proofly:popover-hide', handlePopoverHide);
+    this.popoverHideCleanup = () => {
+      this.popover?.removeEventListener('proofly:popover-hide', handlePopoverHide);
+    };
+  }
+
+  private detachPopover(): void {
+    if (!this.popover) {
+      return;
+    }
+
+    this.highlighter.setPopover(null);
+    this.cleanupHandler(this.popoverHideCleanup);
+    this.popoverHideCleanup = null;
+    this.popover.remove();
+    this.popover = null;
+  }
+
+  private updatePopoverVisibility(): void {
+    const hasCorrections = this.elementCorrections.size > 0;
+    if (this.autofixOnDoubleClick || !hasCorrections) {
+      this.detachPopover();
+      return;
+    }
+
+    this.ensurePopover();
   }
 
   private cleanupHandler(cleanup: (() => void) | null): void {
@@ -268,6 +301,7 @@ export class ProofreadingManager {
       this.elementCorrections.delete(element);
       needsIssuesUpdate = true;
     }
+    this.updatePopoverVisibility();
 
     // Remove from messages
     if (this.elementMessages.has(element)) {
@@ -422,7 +456,7 @@ export class ProofreadingManager {
     corrections: ProofreadCorrection[]
   ): void {
     const session = this.ensureTargetSession(element);
-    const mapped = this.mapCorrectionsToIssues(corrections);
+    const mapped = this.mapCorrectionsToIssues(corrections, element.value ?? '');
     const lookup = new Map<string, ProofreadCorrection>();
     const issues: SessionIssue[] = [];
     for (const { issue, correction } of mapped) {
@@ -453,6 +487,7 @@ export class ProofreadingManager {
         this.elementIssueLookup.delete(element);
         this.elementCorrections.delete(element);
         this.scheduleIssuesUpdate(true);
+        this.updatePopoverVisibility();
       }
       return;
     }
@@ -463,10 +498,12 @@ export class ProofreadingManager {
       this.activeSessionElement = null;
     }
     this.emitIssuesUpdate();
+    this.updatePopoverVisibility();
   }
 
   private mapCorrectionsToIssues(
-    corrections: ProofreadCorrection[]
+    corrections: ProofreadCorrection[],
+    elementText?: string
   ): Array<{ issue: SessionIssue; correction: ProofreadCorrection }> {
     return corrections
       .map((correction, index) => ({ correction, index }))
@@ -477,9 +514,37 @@ export class ProofreadingManager {
           start: correction.startIndex,
           end: correction.endIndex,
           type: this.toIssueType(correction),
+          label: this.buildIssueLabel(correction, elementText),
         },
         correction,
       }));
+  }
+
+  private buildIssueLabel(correction: ProofreadCorrection, elementText?: string): string {
+    const paletteEntry = getCorrectionTypeColor(correction.type);
+    const suggestionValue = correction.correction;
+
+    if (typeof suggestionValue === 'string') {
+      if (suggestionValue === ' ') {
+        return `${paletteEntry.label} suggestion: space character`;
+      }
+      if (suggestionValue === '') {
+        return `${paletteEntry.label} suggestion: remove highlighted text`;
+      }
+      if (suggestionValue.trim().length > 0) {
+        return `${paletteEntry.label} suggestion: ${suggestionValue.trim()}`;
+      }
+      return `${paletteEntry.label} suggestion: whitespace adjustment`;
+    }
+
+    if (elementText && elementText.length > 0) {
+      const originalText = this.extractOriginalText(elementText, correction).trim();
+      if (originalText.length > 0) {
+        return `${paletteEntry.label} issue: ${originalText}`;
+      }
+    }
+
+    return `${paletteEntry.label} suggestion`;
   }
 
   private buildIssueId(correction: ProofreadCorrection, index: number): string {
@@ -536,10 +601,12 @@ export class ProofreadingManager {
   private storeElementCorrections(element: HTMLElement, corrections: ProofreadCorrection[]): void {
     if (corrections.length === 0) {
       this.elementCorrections.delete(element);
+      this.updatePopoverVisibility();
       return;
     }
 
     this.elementCorrections.set(element, corrections);
+    this.updatePopoverVisibility();
   }
 
   private setElementMessage(element: HTMLElement, message: IssueGroupError): void {
@@ -726,7 +793,7 @@ export class ProofreadingManager {
   private getElementId(element: HTMLElement): string {
     let identifier = this.elementIds.get(element);
     if (!identifier) {
-      identifier = crypto.randomUUID();
+      identifier = createUniqueId('element');
       this.elementIds.set(element, identifier);
       this.elementLookup.set(identifier, element);
     }
@@ -947,6 +1014,9 @@ export class ProofreadingManager {
     y: number
   ): void {
     if (!this.popover) {
+      this.updatePopoverVisibility();
+    }
+    if (!this.popover) {
       return;
     }
 
@@ -957,7 +1027,7 @@ export class ProofreadingManager {
       this.handleCorrectionFromPopover(element, applied);
     });
 
-    this.popover.show(x, y);
+    this.popover.show(x, y, { anchorElement: element });
   }
 
   private async initializeCorrectionPreferences(): Promise<void> {
@@ -1047,6 +1117,7 @@ export class ProofreadingManager {
   private updateAutofixOnDoubleClick(enabled: boolean): void {
     this.autofixOnDoubleClick = enabled;
     this.elementSessions.forEach((session) => session.setAutofixOnDoubleClick(enabled));
+    this.updatePopoverVisibility();
   }
 
   private scheduleIssuesUpdate(flushImmediately = false): void {
@@ -1189,7 +1260,7 @@ export class ProofreadingManager {
     this.handleProofreadLifecycle({
       status: 'ignored',
       element,
-      executionId: crypto.randomUUID(),
+      executionId: createUniqueId('proofread'),
       textLength: this.getElementSnapshotText(element).length,
       reason,
     });
@@ -1260,7 +1331,7 @@ export class ProofreadingManager {
     this.controller.dispose();
 
     this.highlighter.destroy();
-    this.popover?.remove();
+    this.detachPopover();
     this.observer?.disconnect();
 
     this.elementSessions.forEach((session) => session.detach());
@@ -1272,9 +1343,6 @@ export class ProofreadingManager {
 
     this.registeredElements.clear();
     this.proofreadQueue.clear();
-
-    this.cleanupHandler(this.popoverHideCleanup);
-    this.popoverHideCleanup = null;
 
     this.cleanupHandler(this.correctionTypeCleanup);
     this.correctionTypeCleanup = null;
