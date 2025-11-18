@@ -434,7 +434,7 @@ export class ProofreadingManager {
           }
           void this.controller.proofread(element);
         },
-        onUnderlineClick: (issueId, pageRect) => {
+        onUnderlineClick: (issueId, pageRect, anchorNode) => {
           this.activeSessionElement = element;
           const lookup = this.elementIssueLookup.get(element);
           const correction = lookup?.get(issueId);
@@ -443,7 +443,19 @@ export class ProofreadingManager {
           }
           const anchorX = pageRect.left + pageRect.width / 2;
           const anchorY = pageRect.top + pageRect.height;
-          this.showPopoverForCorrection(element, correction, anchorX, anchorY);
+          const positionResolver = anchorNode
+            ? () => {
+                if (!anchorNode.isConnected) {
+                  return null;
+                }
+                const rect = anchorNode.getBoundingClientRect();
+                return {
+                  x: rect.left + rect.width / 2,
+                  y: rect.top + rect.height,
+                };
+              }
+            : undefined;
+          this.showPopoverForCorrection(element, correction, anchorX, anchorY, positionResolver);
         },
         onUnderlineDoubleClick: (issueId) => {
           const lookup = this.elementIssueLookup.get(element);
@@ -524,19 +536,19 @@ export class ProofreadingManager {
     corrections: ProofreadCorrection[],
     elementText?: string
   ): Array<{ issue: SessionIssue; correction: ProofreadCorrection }> {
-    return corrections
-      .map((correction, index) => ({ correction, index }))
-      .filter(({ correction }) => correction.endIndex > correction.startIndex)
-      .map(({ correction, index }) => ({
-        issue: {
-          id: this.buildIssueId(correction, index),
-          start: correction.startIndex,
-          end: correction.endIndex,
-          type: this.toIssueType(correction),
-          label: this.buildIssueLabel(correction, elementText),
-        },
-        correction,
-      }));
+    const validCorrections = corrections.filter(
+      (correction) => correction.endIndex > correction.startIndex
+    );
+    return validCorrections.map((correction, index) => ({
+      issue: {
+        id: this.buildIssueId(correction, index),
+        start: correction.startIndex,
+        end: correction.endIndex,
+        type: this.toIssueType(correction),
+        label: this.buildIssueLabel(correction, elementText),
+      },
+      correction,
+    }));
   }
 
   private buildIssueLabel(correction: ProofreadCorrection, elementText?: string): string {
@@ -911,8 +923,11 @@ export class ProofreadingManager {
       return null;
     }
 
-    for (let index = 0; index < corrections.length; index += 1) {
-      const correction = corrections[index];
+    const validCorrections = corrections.filter(
+      (correction) => correction.endIndex > correction.startIndex
+    );
+    for (let index = 0; index < validCorrections.length; index += 1) {
+      const correction = validCorrections[index];
       const currentId = this.buildIssueId(correction, index);
       if (currentId === issueId) {
         return correction;
@@ -1099,7 +1114,8 @@ export class ProofreadingManager {
     element: HTMLElement,
     correction: ProofreadCorrection,
     x: number,
-    y: number
+    y: number,
+    positionResolver?: () => { x: number; y: number } | null
   ): void {
     if (!this.popover) {
       this.updatePopoverVisibility();
@@ -1115,7 +1131,7 @@ export class ProofreadingManager {
       this.handleCorrectionFromPopover(element, applied);
     });
 
-    this.popover.show(x, y, { anchorElement: element });
+    this.popover.show(x, y, { anchorElement: element, positionResolver });
   }
 
   private async initializeCorrectionPreferences(): Promise<void> {
