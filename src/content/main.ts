@@ -52,8 +52,22 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message.type === 'proofly:apply-all-issues') {
-    manager?.applyAllIssues();
+    manager?.applyAllIssues(message.payload?.elementId);
     sendResponse({ success: true });
+    return true;
+  }
+
+  if (message.type === 'proofly:preview-issue') {
+    if (message.payload?.elementId && message.payload?.issueId) {
+      manager?.previewIssue(
+        message.payload.elementId,
+        message.payload.issueId,
+        Boolean(message.payload.active)
+      );
+      sendResponse({ success: true });
+    } else {
+      sendResponse({ success: false });
+    }
     return true;
   }
 

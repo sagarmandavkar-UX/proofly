@@ -5,6 +5,7 @@ import './style.css';
 import { logger } from '../services/logger.ts';
 import { isModelReady } from '../shared/utils/storage.ts';
 import type {
+  ApplyAllIssuesMessage,
   IssuesStateRequestMessage,
   IssuesStateResponseMessage,
   IssuesUpdateMessage,
@@ -13,11 +14,14 @@ import type {
   ProofreaderStateUpdateMessage,
   ProofreaderBusyStateRequestMessage,
   ProofreaderBusyStateResponseMessage,
+  PreviewIssueMessage,
 } from '../shared/messages/issues.ts';
 import { ProoflyIssuesPanel } from './components/issues-panel.ts';
 import { ensureProofreaderModelReady } from '../services/model-checker.ts';
 
 type ApplyIssueDetail = { elementId: string; issueId: string };
+type FixAllIssuesDetail = { elementId?: string };
+type PreviewIssueDetail = { issueId: string; elementId: string; active: boolean };
 
 let panelElement: ProoflyIssuesPanel | null = null;
 let appContainer: HTMLDivElement | null = null;
@@ -88,6 +92,7 @@ function mountIssuesPanel(): void {
   panelElement.addEventListener('apply-issue', onApplyIssue);
   panelElement.addEventListener('open-settings', onOpenSettings);
   panelElement.addEventListener('fix-all-issues', onFixAllIssues);
+  panelElement.addEventListener('preview-issue', onPreviewIssue);
 
   const section = document.createElement('div');
   section.className = 'prfly-section prfly-section--muted';
@@ -253,8 +258,12 @@ function onOpenSettings(): void {
   });
 }
 
-function onFixAllIssues(): void {
-  void handleFixAllIssues();
+function onFixAllIssues(event: Event): void {
+  void handleFixAllIssues((event as CustomEvent<FixAllIssuesDetail>).detail?.elementId);
+}
+
+function onPreviewIssue(event: Event): void {
+  void handlePreviewIssue((event as CustomEvent<PreviewIssueDetail>).detail);
 }
 
 async function handleApplyIssue(event: CustomEvent<ApplyIssueDetail>): Promise<void> {
@@ -287,19 +296,52 @@ async function handleApplyIssue(event: CustomEvent<ApplyIssueDetail>): Promise<v
   }
 }
 
-async function handleFixAllIssues(): Promise<void> {
+async function handleFixAllIssues(elementId?: string): Promise<void> {
   if (!activeTabId) {
     logger.warn('Fix all issues requested without an active tab');
     return;
   }
 
   try {
-    await chrome.tabs.sendMessage(activeTabId, {
-      type: 'proofly:apply-all-issues',
-    });
-    logger.info({ tabId: activeTabId }, 'Fix all issues dispatched');
+    const message: ApplyAllIssuesMessage = elementId
+      ? {
+          type: 'proofly:apply-all-issues',
+          payload: { elementId },
+        }
+      : { type: 'proofly:apply-all-issues' };
+
+    await chrome.tabs.sendMessage(activeTabId, message);
+    logger.info({ tabId: activeTabId, elementId }, 'Fix all issues dispatched');
   } catch (error) {
-    logger.error({ error, tabId: activeTabId }, 'Failed to fix all issues from sidepanel');
+    logger.error(
+      { error, tabId: activeTabId, elementId },
+      'Failed to fix all issues from sidepanel'
+    );
+  }
+}
+
+async function handlePreviewIssue(detail?: PreviewIssueDetail): Promise<void> {
+  if (!detail) {
+    return;
+  }
+
+  if (!activeTabId) {
+    return;
+  }
+
+  const message: PreviewIssueMessage = {
+    type: 'proofly:preview-issue',
+    payload: {
+      elementId: detail.elementId,
+      issueId: detail.issueId,
+      active: detail.active,
+    },
+  };
+
+  try {
+    await chrome.tabs.sendMessage(activeTabId, message);
+  } catch (error) {
+    logger.warn({ error, tabId: activeTabId }, 'Failed to preview issue from sidepanel');
   }
 }
 

@@ -84,6 +84,8 @@ vi.mock('./components/content-highlighter.ts', () => ({
     clearSelection = vi.fn();
     destroy = vi.fn();
     setCorrectionColors = vi.fn();
+    previewCorrection = vi.fn();
+    clearPreview = vi.fn();
   },
 }));
 
@@ -93,6 +95,7 @@ vi.mock('./handlers/mirror-target-handler.ts', () => ({
     dispose = vi.fn();
     clearSelection = vi.fn();
     updatePreferences = vi.fn();
+    previewIssue = vi.fn();
   },
 }));
 
@@ -222,6 +225,12 @@ describe('ProofreadingManager', () => {
   describe('applyAllIssues', () => {
     it('should apply all corrections', () => {
       manager.applyAllIssues();
+
+      expect(manager).toBeDefined();
+    });
+
+    it('should handle element-scoped bulk apply', () => {
+      manager.applyAllIssues('element-123');
 
       expect(manager).toBeDefined();
     });

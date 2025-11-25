@@ -11,10 +11,24 @@ import type {
 const PANEL_HEADING = 'Suggested Corrections';
 const EMPTY_STATE_MESSAGE = `Start typing on the page to see proofreading suggestions.`;
 
+type FixAllIssuesEventDetail = {
+  elementId?: string;
+};
+type PreviewIssueEventDetail = {
+  issueId: string;
+  elementId: string;
+  active: boolean;
+};
+
 export class ProoflyIssuesPanel extends HTMLElement {
   private readonly shadow: ShadowRoot;
   private state: IssuesUpdatePayload | null = null;
   private readonly handleClickBound = this.handleClick.bind(this);
+  private readonly handlePointerOverBound = this.handlePointerOver.bind(this);
+  private readonly handlePointerOutBound = this.handlePointerOut.bind(this);
+  private readonly handleFocusInBound = this.handleFocusIn.bind(this);
+  private readonly handleFocusOutBound = this.handleFocusOut.bind(this);
+  private currentPreview: { issueId: string; elementId: string } | null = null;
 
   constructor() {
     super();
@@ -23,11 +37,19 @@ export class ProoflyIssuesPanel extends HTMLElement {
 
   connectedCallback(): void {
     this.shadow.addEventListener('click', this.handleClickBound);
+    this.shadow.addEventListener('pointerover', this.handlePointerOverBound);
+    this.shadow.addEventListener('pointerout', this.handlePointerOutBound);
+    this.shadow.addEventListener('focusin', this.handleFocusInBound);
+    this.shadow.addEventListener('focusout', this.handleFocusOutBound);
     this.render();
   }
 
   disconnectedCallback(): void {
     this.shadow.removeEventListener('click', this.handleClickBound);
+    this.shadow.removeEventListener('pointerover', this.handlePointerOverBound);
+    this.shadow.removeEventListener('pointerout', this.handlePointerOutBound);
+    this.shadow.removeEventListener('focusin', this.handleFocusInBound);
+    this.shadow.removeEventListener('focusout', this.handleFocusOutBound);
   }
 
   setState(state: IssuesUpdatePayload | null): void {
@@ -56,7 +78,28 @@ export class ProoflyIssuesPanel extends HTMLElement {
       }
       event.preventDefault();
       this.dispatchEvent(
-        new CustomEvent('fix-all-issues', {
+        new CustomEvent<FixAllIssuesEventDetail>('fix-all-issues', {
+          detail: {},
+          bubbles: true,
+          composed: true,
+        })
+      );
+      return;
+    }
+
+    const groupFixAllButton = target.closest<HTMLButtonElement>('.group__fix-all-btn');
+    if (groupFixAllButton) {
+      if (groupFixAllButton.disabled) {
+        return;
+      }
+      const elementId = groupFixAllButton.dataset.elementId;
+      if (!elementId) {
+        return;
+      }
+      event.preventDefault();
+      this.dispatchEvent(
+        new CustomEvent<FixAllIssuesEventDetail>('fix-all-issues', {
+          detail: { elementId },
           bubbles: true,
           composed: true,
         })
@@ -81,6 +124,66 @@ export class ProoflyIssuesPanel extends HTMLElement {
     this.emitApplyIssue(issueId, elementId);
   }
 
+  private handlePointerOver(event: Event): void {
+    const pointerEvent = event as PointerEvent;
+    const issue = this.resolveIssueTarget(pointerEvent.target);
+    if (!issue) {
+      return;
+    }
+
+    const related = pointerEvent.relatedTarget as HTMLElement | null;
+    if (related && issue.node.contains(related)) {
+      return;
+    }
+
+    this.updatePreviewState(issue.issueId, issue.elementId, true);
+  }
+
+  private handlePointerOut(event: Event): void {
+    const pointerEvent = event as PointerEvent;
+    const issue = this.resolveIssueTarget(pointerEvent.target);
+    if (!issue) {
+      return;
+    }
+
+    const related = pointerEvent.relatedTarget as HTMLElement | null;
+    if (related && issue.node.contains(related)) {
+      return;
+    }
+
+    this.updatePreviewState(issue.issueId, issue.elementId, false);
+  }
+
+  private handleFocusIn(event: Event): void {
+    const focusEvent = event as FocusEvent;
+    const issue = this.resolveIssueTarget(focusEvent.target);
+    if (!issue) {
+      return;
+    }
+
+    const related = focusEvent.relatedTarget as HTMLElement | null;
+    if (related && issue.node.contains(related)) {
+      return;
+    }
+
+    this.updatePreviewState(issue.issueId, issue.elementId, true);
+  }
+
+  private handleFocusOut(event: Event): void {
+    const focusEvent = event as FocusEvent;
+    const issue = this.resolveIssueTarget(focusEvent.target);
+    if (!issue) {
+      return;
+    }
+
+    const related = focusEvent.relatedTarget as HTMLElement | null;
+    if (related && issue.node.contains(related)) {
+      return;
+    }
+
+    this.updatePreviewState(issue.issueId, issue.elementId, false);
+  }
+
   private emitApplyIssue(issueId: string, elementId: string): void {
     this.dispatchEvent(
       new CustomEvent('apply-issue', {
@@ -89,6 +192,89 @@ export class ProoflyIssuesPanel extends HTMLElement {
         composed: true,
       })
     );
+  }
+
+  private resolveIssueTarget(target: EventTarget | null): {
+    node: HTMLElement;
+    issueId: string;
+    elementId: string;
+  } | null {
+    if (!(target instanceof HTMLElement)) {
+      return null;
+    }
+
+    const node = target.closest<HTMLElement>('.issue');
+    if (!node) {
+      return null;
+    }
+
+    const issueId = node.getAttribute('data-issue-id');
+    const elementId = node.getAttribute('data-element-id');
+    if (!issueId || !elementId) {
+      return null;
+    }
+
+    return { node, issueId, elementId };
+  }
+
+  private updatePreviewState(issueId: string, elementId: string, active: boolean): void {
+    if (active) {
+      if (
+        this.currentPreview &&
+        this.currentPreview.issueId === issueId &&
+        this.currentPreview.elementId === elementId
+      ) {
+        return;
+      }
+
+      if (this.currentPreview) {
+        this.dispatchPreviewIssue({
+          issueId: this.currentPreview.issueId,
+          elementId: this.currentPreview.elementId,
+          active: false,
+        });
+      }
+
+      this.currentPreview = { issueId, elementId };
+      this.dispatchPreviewIssue({ issueId, elementId, active: true });
+      return;
+    }
+
+    if (
+      this.currentPreview &&
+      this.currentPreview.issueId === issueId &&
+      this.currentPreview.elementId === elementId
+    ) {
+      this.dispatchPreviewIssue({ issueId, elementId, active: false });
+      this.currentPreview = null;
+    }
+  }
+
+  private dispatchPreviewIssue(detail: PreviewIssueEventDetail): void {
+    this.dispatchEvent(
+      new CustomEvent<PreviewIssueEventDetail>('preview-issue', {
+        detail,
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  private reconcilePreviewState(): void {
+    if (!this.currentPreview) {
+      return;
+    }
+
+    const selector = `.issue[data-issue-id="${this.currentPreview.issueId}"][data-element-id="${this.currentPreview.elementId}"]`;
+    const stillExists = this.shadow.querySelector(selector);
+    if (!stillExists) {
+      this.dispatchPreviewIssue({
+        issueId: this.currentPreview.issueId,
+        elementId: this.currentPreview.elementId,
+        active: false,
+      });
+      this.currentPreview = null;
+    }
   }
 
   private render(): void {
@@ -115,8 +301,8 @@ export class ProoflyIssuesPanel extends HTMLElement {
             <button
               type="button"
               class="panel-action-btn fix-all-btn"
-              title="Apply all corrections"
-              aria-label="Apply all corrections"
+              title="Apply all corrections for the page"
+              aria-label="Apply all corrections for the page"
               ${totalIssues === 0 ? 'disabled' : ''}
             >
               <img src="${fixAllIconUrl}" alt="" />
@@ -127,28 +313,45 @@ export class ProoflyIssuesPanel extends HTMLElement {
           </div>
         </header>
         <section class="panel__content">
-          ${hasGroups ? this.renderIssueGroups(groups) : this.renderEmptyState()}
+          ${hasGroups ? this.renderIssueGroups(groups, fixAllIconUrl) : this.renderEmptyState()}
         </section>
       </div>
     `;
+
+    this.reconcilePreviewState();
   }
 
   private renderIssueSummary(totalIssues: number): string {
     return `<span class="issue__badge issue__count">${totalIssues}</span>`;
   }
 
-  private renderIssueGroups(groups: IssueElementGroup[]): string {
+  private renderIssueGroups(groups: IssueElementGroup[], fixAllIconUrl: string): string {
     return groups
       .map((group) => {
-        const heading = describeGroupHeading(group);
-        const header = heading ? `<h2 class="group__title">${this.escapeHtml(heading)}</h2>` : '';
+        const heading = describeGroupHeading(group) || 'Current field';
+        const escapedHeading = this.escapeHtml(heading);
+        const fixAllLabel = this.escapeHtml(`Apply all corrections for ${heading}`);
+        const header = `<h2 class="group__title">${escapedHeading}</h2>`;
         const cards = group.issues.map((issue) => this.renderIssueCard(group, issue)).join('');
         const notices = group.errors ? this.renderGroupMessages(group.errors) : '';
         const issuesContent =
           group.issues.length > 0 ? `<div class="group__issues">${cards}</div>` : '';
         return `
           <article class="group" data-element-id="${group.elementId}">
-            ${header}
+            <div class="group__header">
+              ${header}
+              <button
+                type="button"
+                class="group__fix-all-btn"
+                data-element-id="${group.elementId}"
+                title="${fixAllLabel}"
+                aria-label="${fixAllLabel}"
+                ${group.issues.length === 0 ? 'disabled' : ''}
+              >
+                <img src="${fixAllIconUrl}" alt="" />
+                <span>Apply all</span>
+              </button>
+            </div>
             ${notices}
             ${issuesContent}
           </article>
@@ -339,11 +542,54 @@ export class ProoflyIssuesPanel extends HTMLElement {
         box-shadow: var(--shadow-sm);
       }
 
+      .group__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--spacing-sm);
+      }
+
       .group__title {
         margin: 0;
         font-size: var(--font-size-sm);
         font-weight: var(--font-weight-semibold);
         color: var(--color-text-secondary);
+        flex: 1;
+      }
+
+      .group__fix-all-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--color-border);
+        background: var(--color-surface-subtle);
+        color: var(--color-text-secondary);
+        padding: 0.4rem 0.6rem;
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-medium);
+        cursor: pointer;
+        transition: background var(--transition-base), color var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base);
+      }
+
+      .group__fix-all-btn:hover,
+      .group__fix-all-btn:focus-visible {
+        border-color: var(--color-primary);
+        color: var(--color-primary);
+        box-shadow: 0 0 0 3px var(--color-primary-ring);
+      }
+
+      .group__fix-all-btn[disabled] {
+        cursor: not-allowed;
+        opacity: 0.6;
+        border-color: var(--color-border);
+        color: var(--color-text-tertiary);
+        box-shadow: none;
+      }
+
+      .group__fix-all-btn img {
+        width: 1.2rem;
+        height: 1.2rem;
       }
 
       .group__issues {

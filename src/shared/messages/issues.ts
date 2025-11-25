@@ -100,6 +100,18 @@ export interface ApplyIssueMessage {
 
 export interface ApplyAllIssuesMessage {
   type: 'proofly:apply-all-issues';
+  payload?: {
+    elementId?: string;
+  };
+}
+
+export interface PreviewIssueMessage {
+  type: 'proofly:preview-issue';
+  payload: {
+    elementId: string;
+    issueId: string;
+    active: boolean;
+  };
 }
 
 export interface ProofreaderStateMessage {
@@ -159,6 +171,7 @@ export type ProoflyMessage =
   | IssuesUpdateMessage
   | ApplyIssueMessage
   | ApplyAllIssuesMessage
+  | PreviewIssueMessage
   | ProofreaderStateMessage
   | ProofreaderStateUpdateMessage
   | IssuesStateRequestMessage
