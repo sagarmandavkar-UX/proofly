@@ -3,375 +3,296 @@
 
 # Proofly
 
-### Private AI Writing, Proofreading & Grammar Assistant
+### A Local-First AI Writing Copilot for Students & Professionals
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Chrome](https://img.shields.io/badge/Chrome-141+-4285F4?logo=googlechrome&logoColor=white)](https://www.google.com/chrome/)
+[![Chrome](https://img.shields.io/badge/Chrome-141+-4285F4?logo=google-chrome&logoColor=white)](https://www.google.com/chrome/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8+-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-**Your privacy-first writing assistant powered by Chrome on-device AI**
+**For writers who cannot share their text. Ever.**
 
-<a href="https://www.youtube.com/watch?v=XU2wM87VukY" target="_blank"><img src="static/youtube-promo.png" alt="Watch Proofly Promo Video on YouTube" width="640"></a>
+> Privacy isn't a feature—it's the foundation.
 
-[Features](#features) •
-[Why Proofly](#why-proofly) •
-[Installation](#installation) •
-[Contributing](#development) •
-[Privacy](#privacy--security)
+[Watch Demo](#) • [Features](#features) • [Why Proofly](#why-proofly) • [Installation](#installation)
 
 </div>
 
----
+## The Core Promise
 
-## What is Proofly?
+**Proofly is a local-first AI writing copilot for students and professionals who cannot share their text.**
 
-Proofly is a free, open-source Chrome extension that brings professional-grade writing assistance directly to your browser—**without compromising your privacy**. Unlike cloud-based alternatives like Grammarly, LanguageTool, or QuillBot, Proofly uses Chrome's Built-in AI APIs to proofread your writing entirely on-device. Your keystrokes never leave your machine.
+No clouds. No servers. No data collection. Just your writing, your device, your rules.
 
-### The Problems We Solve
+## Who Needs This?
 
-Traditional writing assistants require sending your text to remote servers:
+- Students: Write exams without uploading to the cloud
+- Lawyers: Draft contracts in complete privacy
+- Researchers: Work with confidential data
+- Non-native writers: Learn why your English is wrong, not just the fix
+- Remote workers: Write on airplanes, no internet needed
 
-- ❌ Your private data travels across the internet
-- ❌ Your writing is stored on company servers
-- ❌ Requires constant internet connectivity
-- ❌ Subject to data breaches and privacy violations
-- ❌ Injects excessive UI to the sites you visit
-- ❌ Expensive subscription fees
+## Why Proofly Wins
 
-### Our Solution
+### True Privacy (Not Just a Buzzword)
+Grammarly scans your writing. Proofly doesn't. Everything runs locally:
+- No servers
+- No data centers
+- No terms of service
+- No "we promise we don't sell your data"
 
-Proofly runs 100% locally on your device:
+**Exam Mode**: Write during exams with zero cloud contact. Zero logging. Verified privacy.
 
-- ✅ **Zero data transmission** - Everything stays on your machine
-- ✅ **Complete privacy** - No servers, no logs, no tracking
-- ✅ **Works offline** - No internet required after model download
-- ✅ **Free forever** - Open source, no subscriptions
-- ✅ **Lightweight** - Minimal script injection, zero dependencies
-- ✅ **User friendly** - Introduces fresh, non-invasive UX patterns
-- ✅ **Customizable** - Complete control on how you'd like to get assistance
+### Works Offline
+Write on airplanes. Mountains. Anywhere. Works perfectly without internet (after model download).
 
----
+### Built for Clarity, Not Tone Fluff
+We focus on what matters:
+- Grammar & structure
+- Clarity for non-native English
+- Explanations that teach
+- No "make it more professional" nonsense
 
-## Features
-
-### Privacy-First Architecture
-
-- **On-Device Processing**: All AI proofreading happens locally using Chrome's Built-in AI models
-- **Zero Server Communication**: Your text never leaves your browser
-- **No Telemetry**: We don't collect any usage data or analytics
-- **Open Source**: Complete transparency - audit the code yourself
-
-### Intelligent Writing Assistance
-
-- **Multilingual**: Supports all languages that the built-in Gemini Nano model provides
-- **Spelling Corrections**: Catch typos and misspellings instantly
-- **Grammar Fixes**: Subject-verb agreement, tense consistency, and more
-- **Punctuation**: Proper comma usage, missing periods, quotation marks
-- **Capitalization**: Sentence starts, proper nouns, title case
-- **Preposition Usage**: Correct preposition selection
-- **Missing Words**: Detect incomplete sentences
-
-### User-Friendly Interface
-
-- **Visual Highlights**: Color-coded underlines for different issue types
-- **Inline Corrections**: Click any highlight to see suggestions
-- **Keyboard Shortcuts**: Quick access with customizable hotkeys (Cmd/Ctrl+Shift+P)
-- **Auto-Correct Mode**: Real-time checking as you type
-- **Manual Mode**: Check on-demand whenever you want
-- **Selection Correction**: Proofread your own highlighted text on-demand
-- **Issues Sidebar**: View issues, navigate through them and apply suggested corrections in a dedicated panel
-- **Undo/Redo Support**: Full history management for corrections
-
-### Performance & Compatibility
-
-- **Lightweight**: Minimal footprint (<5KB initial injection)
-- **Fast**: Instant suggestions powered by local on-device AI
-- **Shadow DOM Isolation**: No interference with host pages
-- **Works Everywhere**: Input fields, textareas, contenteditable elements
-- **Web Standards Compliant**: Ignores auto-correction on fields based on their semantics
-
-### Customization
-
-- **Configurable Correction Types**: Enable/disable specific issue types
-- **Custom Colors**: Personalize highlight colors for each issue type
-- **Underline Styles**: Choose solid, wavy, or dotted underlines
-- **Keyboard Shortcuts**: Customize your workflow with auto-fix or manual-fix options
-- **Autofix on Double-Click**: Quick correction with double-click
+### Lightning Fast
+No API calls. No network latency. Instant suggestions as you type.
 
 ---
 
-## Why Proofly?
+## What Proofly Does
 
-| Feature                | Proofly           | Grammarly        | LanguageTool     | QuillBot         |
-| ---------------------- | ----------------- | ---------------- | ---------------- | ---------------- |
-| **Privacy**            | ✅ On-device only | ❌ Cloud-based   | ❌ Cloud-based   | ❌ Cloud-based   |
-| **Works Offline**      | ✅ Yes            | ❌ No            | ❌ No            | ❌ No            |
-| **Cost**               | ✅ Free forever   | 💰 $12-30/mo     | 💰 $5-20/mo      | 💰 $8-20/mo      |
-| **Open Source**        | ✅ Yes            | ❌ No            | ⚠️ Partial       | ❌ No            |
-| **No Data Collection** | ✅ Zero tracking  | ❌ Collects data | ❌ Collects data | ❌ Collects data |
-| **Lightweight**        | ✅ <5KB initial   | ❌ Heavy scripts | ❌ Heavy scripts | ❌ Heavy scripts |
-| **Browser Support**    | Chrome 141+       | All browsers     | All browsers     | All browsers     |
+### Proofly Explains Why
+Every suggestion includes a one-line explanation. This is powerful for students.
 
-### Key Advantages
+### Exam Mode
+Write during exams safely:
+- Zero cloud sync
+- Zero logging
+- Zero history
+- Complete privacy
+- Perfect for university exams, bar exams, certifications
 
-1. **Privacy You Can Verify**: Open-source code means no hidden data collection
-2. **No Subscription Treadmill**: Free forever, no artificial limitations
-3. **True Offline Mode**: Works on airplanes, remote locations, anywhere
-4. **Lightning Fast**: No network latency, instant corrections
-5. **Resource Efficient**: Minimal CPU and memory usage
-6. **Non-Invasive**: Minimal native code is injected to the sites only when needed
-7. **No Account Required**: No sign-up, no email, no personal info
-8. **Future-Proof**: Uses Chrome's standard Built-in AI API and modern web tech
+### Smart Corrections
+Not paragraph dumps. Real, useful suggestions:
+- Passive voice warnings: "Consider rewording to be direct"
+- Clarity checks: Highlights confusing sentences
+- Sentence-level fixes: Not entire paragraph rewrites
+- Make clearer / Make shorter / More formal: Your choice
+- Keyboard shortcuts: One-click accept/reject
 
----
-
-## Technology Stack
-
-Proofly is built with modern web technologies and best practices:
-
-### Core Technologies
-
-- **[TypeScript](https://www.typescriptlang.org/)** - Strict type safety, comprehensive type coverage
-- **[Web Components](https://www.webcomponents.org/introduction)** - Custom components - no framework bloat
-- **[Chrome Built-in AI API](https://developer.chrome.com/docs/ai/built-in-apis)** - On-device proofreading and language detection models
-
-### Architecture & Patterns
-
-- **Web Components** - Standards-compliant custom elements with Shadow DOM
-- **Vanilla JavaScript and CSS** - Zero framework dependencies for minimal bundle size
-- **Functional Programming** - Pure functions, composition, immutability
-- **Dependency Injection** - Testable, modular service architecture
-- **Event-Driven Communication** - Loosely coupled components
-
-### UI & Styling
-
-- **Shadow DOM** - Complete style isolation, no CSS conflicts
-- **CSS Custom Properties** - Design token system for theming
-- **CSS Highlights API** - Native browser highlighting for performance
-- **Popover API** - Native popup positioning and management
-
-### Chrome Extension APIs
-
-- **Chrome Storage API** - Sync settings across devices
-- **Chrome Side Panel API** - Dedicated sidebar interface
-- **Chrome Context Menus API** - Right-click integration
-- **Content Scripts** - Page interaction and highlighting
-- **Service Workers** - Background processing
-
-### Build & Deployment
-
-- **TypeScript Compiler** - Type checking and transpilation
-- **Vite Plugin Ecosystem** - Build optimization and bundling
-- **Chrome Web Store Packaging** - Automated release builds
-- **Hot Module Replacement** - Instant dev feedback
+### Invisible UX
+Proofly gets out of the way:
+- Inline suggestions (no popups)
+- Hover explanations
+- Minimal UI
+- Writing never interrupts
 
 ---
 
-## Requirements
+## Proofly vs. Grammarly (The Honest Comparison)
 
-### System Requirements
+| Feature | Proofly | Grammarly |
+|---------|---------|----------|
+| **Privacy** | ✓ 100% local | ✗ Uploads to cloud |
+| **Offline Mode** | ✓ Works without internet | ✗ Requires internet |
+| **Cost** | ✓ Free forever | $ $12-30/month |
+| **Open Source** | ✓ Fully auditable | ✗ Proprietary |
+| **Exam Safe** | ✓ Zero logging mode | ✗ Not exam-safe |
+| **Clarity Focus** | ✓ Explains why | ✗ Tone rewriting (fluff) |
+| **Non-native English** | ✓ ESL-specific clarity | Δ Generic tone |
+| **No Account** | ✓ Install and go | ✗ Requires login |
+| **Lightweight** | ✓ <5KB initial | ✗ Heavy script injection |
 
-- **Operating System**: Windows 10/11, macOS 13+, Linux, or ChromeOS (Chromebook Plus)
-- **Chrome Version**: Chrome 141+
-- **Storage**: At least 22 GB free space (for AI model download)
-- **GPU**: Recommended 4+ GB VRAM for optimal performance
-- **Network**: Internet connection for initial model download (one-time)
-
-### Browser Support
-
-Proofly requires Chrome 141 or later with the Built-in AI Proofreader API enabled.
-
-**Note**: The Proofreader API is in origin trial and will be available in stable Chrome soon.
+**Proofly is not better at tone rewriting.** If you need professional tone suggestions, Grammarly is fine. Proofly is for people who care more about privacy than polish.
 
 ---
 
-## Installation
+## Getting Started
 
-### For Users
+### Install Now
 
-#### Option 1: Chrome Web Store (Coming Soon)
-
-1. Visit the Chrome Web Store listing
+#### Chrome Web Store (Coming Soon)
+1. [Get it from Chrome Web Store](https://chromewebstore.google.com/detail/proofly/oiaicmknhbpnhngdeppegnhobnleeolm)
 2. Click "Add to Chrome"
-3. Follow the on-screen setup
+3. Done
 
-#### Option 2: Manual Installation (Developers)
-
-1. Download the latest release from GitHub
-2. Extract the ZIP file
-3. Open Chrome and navigate to `chrome://extensions/`
-4. Enable "Developer mode" (toggle in top-right)
+#### Manual Installation
+1. [Download latest release](https://github.com/sagarmandavkar-UX/proofly/releases)
+2. Extract ZIP
+3. Open `chrome://extensions/`
+4. Enable "Developer mode" (top-right)
 5. Click "Load unpacked"
-6. Select the extracted `dist/` folder
-7. Click on the Proofly icon and follow the setup wizard
+6. Select extracted `dist/` folder
+7. Download the AI model when prompted
 
-### For Developers
+### Requirements
+- Chrome 141+
+- 22GB free space (for AI model)
+- 4GB+ VRAM recommended
+- Internet for model download (one-time)
 
+---
+
+## Roadmap
+
+### Now (MVP)
+- [x] Offline exam mode
+- [x] Clarity explanations
+- [x] Passive voice warnings
+- [x] Shadow DOM isolation
+
+### Q1 2026
+- [ ] Readability scoring (grade level)
+- [ ] ESL-specific clarity rules
+- [ ] Academic writing mode (APA/MLA)
+- [ ] Tone adjustment (formal <-> casual)
+
+### Q2-Q3 2026
+- [ ] Edge browser support
+- [ ] macOS menu-bar app
+- [ ] Offline model fallback
+
+### Q4 2026+
+- [ ] Optional cloud sync (strict opt-in)
+- [ ] Free + premium tier
+- [ ] Student discount
+- [ ] Enterprise licenses
+
+---
+
+## Features Deep Dive
+
+### What We Detect
+- Grammar: Subject-verb agreement, tense, word forms
+- Spelling: Typos and misspellings
+- Punctuation: Commas, periods, quotes
+- Capitalization: Sentence starts, proper nouns
+- Prepositions: Correct usage
+- Word choice: Missing/redundant words
+- Clarity: Passive voice, complex sentences
+- Multilingual: All languages Gemini Nano supports
+
+### What We Don't Do
+- No tone rewriting
+- No paragraph generation
+- No plagiarism checking
+- No grammar rule bloat
+- No AI-generated nonsense
+
+### Privacy Indicators
+- "Nothing leaves your device" badge
+- Local processing diagram
+- Disable logging toggle
+- Plain English privacy explanation
+
+---
+
+## Build & Contribute
+
+### Quick Start
 ```bash
-# Clone the repository
-git clone https://github.com/onderceylan/proofly.git
+git clone https://github.com/sagarmandavkar-UX/proofly.git
 cd proofly
-
-# Install dependencies
 npm install
-
-# Start development server with hot reload
 npm run dev
-
-# Build for production
-# The extension will be built to dist/
-npm run build
-
-# Load dist/ as an unpacked extension in chrome://extensions/ for testing the prod build
-# Load dev/ as an unpacked extension in chrome://extensions/ for testing the HMR dev build
 ```
 
----
-
-## Development
-
-### Prerequisites
-
-- Node.js 18+ and npm
-- Chrome Canary or Chrome Dev
-- Git
-
-### Development Workflow
-
+### Commands
 ```bash
-# Install dependencies
-npm install
-
-# Start development server (auto-rebuilds on changes)
-npm run dev
-
-# Build the project
-npm run build
-
-# Type checking
-npm run typecheck
-
-# Linting
-npm run lint
-
-# Format checking and fixing
-npm run format:check
-npm run format
-
-# Unit tests
-npm run test
-npm run test:watch
-
-# Puppeteer tests
-npm run test:e2e
-npm run test:e2e:watch
-
-# For setting up e2e test env, load extension in Chrome once for your test-focused puppeteer user profile
-# 1. Download https://www.google.com/chrome/dev/
-# 2. Run `npm run test:e2e:watch` to open the browser profile of puppeteer or launch the browser manually with `/Applications/Google\ Chrome\ Dev.app/Contents/MacOS/Google\ Chrome\ Dev \ --user-data-dir=$HOME/.cache/chrome-devtools-mcp/chrome-profile-canary --load-extension=./projects/proofly/dev --no-first-run --hide-crash-restore-bubble`
-# 3. Open chrome://extensions/
-# 4. Enable "Developer mode"
-# 5. Click "Load unpacked"
-# 6. Select the dev folder
-# 7. Download the AI model once
+npm run typecheck   # Type safety
+npm run lint        # Code style
+npm run test        # Unit tests
+npm run test:e2e    # End-to-end tests
+npm run build       # Production build
 ```
 
-### Development Guidelines
+### Architecture
+- **Web Components**: No framework bloat
+- **TypeScript**: Full type safety
+- **Chrome AI API**: Built-in Gemini Nano
+- **Shadow DOM**: Complete style isolation
+- **Chrome Storage API**: Settings sync
 
-See [AGENTS.md](./AGENTS.md) for comprehensive development guidelines, including:
-
-- Architecture principles
-- Code style conventions
-- Testing workflows
-- Chrome extension patterns
-- Logging guidelines
-
----
-
-## Contributing
-
-We welcome contributions from the community! Whether you're fixing bugs, adding features, or improving documentation, your help is appreciated.
-
-### How to Contribute
-
-1. **Pick an Issue**: Browse open issues or propose new features
-2. **Fork & Branch**: Create a feature branch from `main`
-3. **Make Changes**: Follow our coding standards and conventions
-4. **Test Thoroughly**: Verify your changes work as expected through automated e2e tests
-5. **Submit PR**: Open a pull request with a clear description
-
-### Development Principles
-
-- **Privacy First**: No data collection, no tracking, no telemetry
-- **Minimal Footprint**: Keep bundle sizes small
-- **Long-term Maintenance**: Avoid dependencies, and keep building on native web standards
-- **Non-Invasive**: Respect the user's page and experience, keep injections minimal and isolated
-- **Accessibility**: Support all users, including those with disabilities
-- **Performance**: Optimize for speed and efficiency
+### Contributing
+Read [AGENTS.md](AGENTS.md) for detailed guidelines. Look for "Good first issue" labels.
 
 ---
 
-## Privacy & Security
+## Privacy & Trust
 
-### Our Privacy Commitment
+### We Don't Collect Data
+- No usage analytics
+- No telemetry
+- No crash reports
+- No tracking pixels
+- No user profiles
 
-1. **Zero Data Collection**: We don't collect, store, or transmit any user data
-2. **On-Device Processing**: All AI runs locally on your machine
-3. **No Analytics**: No telemetry, no usage tracking, no crash reports
-4. **No Accounts**: No sign-up, no user profiles, no personal information
-5. **Open Source**: Fully auditable codebase for transparency
+### Everything Is Local
+- AI runs on your device
+- No cloud calls
+- Works offline
+- You control the extension
 
-### Security Features
+### Exam Mode Verified
+- Zero cloud sync
+- Zero logging
+- Zero history
+- Write with confidence
 
-- **Minimal Permissions**: Only requests essential Chrome APIs
-- **Content Security Policy**: Strict CSP prevents code injection
-- **Shadow DOM Isolation**: UI components that are injected to the sites are completely isolated
-- **No External Resources**: All assets bundled with extension
-- **Regular Security Audits**: Community-driven code reviews
+Read our full [Privacy Policy](PRIVACY.md).
 
-Read our full [Privacy Policy](./PRIVACY.md) for more details.
+---
+
+## Pricing
+
+**Proofly is free forever.**
+
+No subscriptions. No ads. No tracking. No upsells.
+
+We believe privacy shouldn't be a luxury.
+
+### Future Options (Not Required)
+- Optional advanced rewrites
+- Student discount
+- Enterprise/campus licenses
+
+Free tier will always exist. Always.
+
+---
+
+## Technology
+
+- **TypeScript** - Type safety
+- **Web Components** - Zero dependencies
+- **Chrome Built-in AI** - Gemini Nano (on-device)
+- **Chrome APIs** - Storage, Side Panel, Context Menus
+- **CSS Highlights API** - Native highlighting
+- **Popover API** - Native tooltips
 
 ---
 
 ## License
 
-This project is licensed under the **MIT License** - see the [LICENSE](./LICENSE) file for details.
+MIT - [Full license](LICENSE.md)
+
+You can use, modify, and distribute Proofly freely.
 
 ---
 
-## Acknowledgments
+## Help & Support
 
-- **Chrome Team** - For developing the Built-in AI API and making on-device AI accessible
-- **Open Source Community** - For the amazing tools and libraries that make this possible
-- **Contributors** - Everyone who helps improve Proofly
-- **Users** - For trusting us with your privacy and writing
-
----
-
-## Links
-
-- **Documentation**: [AGENTS.md](./AGENTS.md)
-- **Privacy Policy**: [PRIVACY.md](./PRIVACY.md)
-- **Chrome Built-in AI**: [developer.chrome.com/docs/ai/built-in-apis](https://developer.chrome.com/docs/ai/built-in-apis)
-- **Issue Tracker**: [GitHub Issues](https://github.com/onderceylan/proofly/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/onderceylan/proofly/discussions)
+- Bug Reports: [GitHub Issues](https://github.com/sagarmandavkar-UX/proofly/issues)
+- Feature Requests: [GitHub Issues](https://github.com/sagarmandavkar-UX/proofly/issues)
+- Questions: [GitHub Discussions](https://github.com/sagarmandavkar-UX/proofly/discussions)
+- Documentation: [AGENTS.md](AGENTS.md)
 
 ---
 
-## Support
+## If You Find It Useful
 
-- **Bug Reports**: [Open an issue](https://github.com/onderceylan/proofly/issues/new?template=bug_report.md)
-- **Feature Requests**: [Request a feature](https://github.com/onderceylan/proofly/issues/new?template=feature_request.md)
-- **Questions**: [Start a discussion](https://github.com/onderceylan/proofly/discussions)
+- Star the repo
+- Share with friends
+- Contribute code
+- Leave feedback
 
 ---
 
-If you find Proofly useful, please consider:
-
-- ⭐ Starring the repo
-- 🐛 Reporting bugs
-- 💡 Suggesting features
-- 🔀 Contributing code
-- 📢 Spreading the word
-
-**Privacy-first writing assistance is possible. Let's prove it together.**
+**Privacy-first writing is possible. Proofly proves it.**
