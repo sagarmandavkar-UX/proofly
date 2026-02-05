@@ -267,6 +267,88 @@ Free tier will always exist. Always.
 - **CSS Highlights API** - Native highlighting
 - **Popover API** - Native tooltips
 
+## Advanced Configuration & Extensibility
+
+Proofly is designed to be customizable for power users and developers who want to tailor the writing assistance to specific needs.
+
+### Configuration Files
+
+**proofly.config.json** - Customize grammar rules, ignored patterns, and AI model parameters:
+
+```json
+{
+  "grammar": {
+    "strictMode": false,
+    "ignorePatterns": ["code", "formula"],
+    "customRules": [
+      { "pattern": "^#*\\s", "severity": "warning", "message": "Markdown heading detected" }
+    ]
+  },
+  "ai": {
+    "modelPath": "./models/gemini-nano",
+    "temperature": 0.7,
+    "maxTokens": 256,
+    "enableCache": true
+  },
+  "clarity": {
+    "targetGrade": 10,
+    "enableToneAnalysis": false,
+    "focusLanguage": "academic"
+  }
+}
+```
+
+### Environment Variables
+
+| Variable | Purpose | Default |
+|----------|---------|----------|
+| `PROOFLY_DEBUG` | Enable debug logging | `false` |
+| `PROOFLY_MODEL_DIR` | Custom path to AI models | `./models` |
+| `PROOFLY_STORAGE_QUOTA` | Local storage limit in MB | `100` |
+| `PROOFLY_HIGHLIGHT_THEME` | Custom CSS theme for highlights | `system` |
+| `PROOFLY_CACHE_ENABLED` | Enable suggestion caching | `true` |
+
+### Plugin Architecture
+
+Extend Proofly with custom grammar rules and analysis modules:
+
+```typescript
+// plugins/custom-grammar.ts
+import { GrammarPlugin, Issue } from '@proofly/plugin-api';
+
+export class CustomGrammarPlugin implements GrammarPlugin {
+  name = 'custom-grammar';
+  version = '1.0.0';
+
+  analyze(text: string): Issue[] {
+    // Your custom analysis logic
+    return [
+      {
+        line: 1,
+        column: 5,
+        severity: 'warning',
+        message: 'Custom rule violation',
+        suggestion: 'Use this instead'
+      }
+    ];
+  }
+}
+```
+
+### Performance Tuning
+
+- **Reduce Model Size**: Use `PROOFLY_MODEL_COMPRESSION=true` for 50% smaller model
+- **Batch Processing**: Analyze multiple documents asynchronously with work queues
+- **Caching Strategy**: Enable aggressive caching for repetitive text patterns
+- **Storage Optimization**: Configure IndexedDB cleanup with `PROOFLY_STORAGE_QUOTA`
+
+### Advanced Privacy Controls
+
+- **Air-gap Mode**: Completely disable network access in extension settings
+- **Model Verification**: Compare model checksums with trusted sources
+- **Audit Logging**: Enable local audit trails for compliance requirements
+- **Export Controls**: Anonymize data before sharing with colleagues
+
 ---
 
 ## License
