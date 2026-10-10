@@ -5,6 +5,7 @@
 **Proofly will always have a free tier.**
 
 Privacy-first software requires sustainable revenue, but it does NOT require charging every user. We believe in:
+
 1. Free core functionality forever
 2. Optional paid features (not paywalls)
 3. Student discounts
@@ -16,6 +17,7 @@ Privacy-first software requires sustainable revenue, but it does NOT require cha
 ## Current Model: Free & Open Source
 
 ### Phase 1 (Now)
+
 - 100% free
 - Open source (MIT license)
 - Community-driven development
@@ -23,6 +25,7 @@ Privacy-first software requires sustainable revenue, but it does NOT require cha
 - No telemetry or data collection
 
 ### Funding
+
 This phase is self-funded or community-supported.
 
 ---
@@ -32,6 +35,7 @@ This phase is self-funded or community-supported.
 ### Phase 2: Optional Tier (Q4 2026+)
 
 #### Free Tier (Always)
+
 - Basic grammar & clarity checking
 - Exam Mode
 - One-line explanations
@@ -40,6 +44,7 @@ This phase is self-funded or community-supported.
 - No logging
 
 #### Professional Tier (Optional, ~$3-5/month)
+
 - Advanced rewrites (optional cloud processing)
 - Readability scoring
 - Academic writing mode
@@ -49,6 +54,7 @@ This phase is self-funded or community-supported.
 **Key point**: Professional tier is completely optional. Free tier is fully functional.
 
 ### Phase 3: Student Program
+
 - Free Professional tier for students
 - Proof of enrollment required
 - No time limit
@@ -56,6 +62,7 @@ This phase is self-funded or community-supported.
 - Universities can bulk-license for free
 
 ### Phase 4: Enterprise Licenses
+
 - Organizations licensing for teams
 - Custom integrations
 - On-premise deployment option
@@ -67,19 +74,25 @@ This phase is self-funded or community-supported.
 ## Why This Model Works
 
 ### 1. Privacy-First Paradox Resolved
+
 Cloud-based competitors like Grammarly charge $12-30/month because they monetize data and run expensive servers. Proofly runs locally, so:
+
 - No server costs (except optional cloud features)
 - No data to monetize
 - Can afford to be free
 
 ### 2. Sustainable Revenue
+
 10% of users paying $5/month is enough to maintain and improve Proofly.
+
 - Low operational costs (OSS model)
 - Efficient on-device processing
 - Community contributions
 
 ### 3. Student & Enterprise Focus
+
 Students and institutions are the primary target:
+
 - Students: Want privacy, hate subscriptions → Free tier perfect
 - Universities: Want campus-wide tool → Bulk licensing
 - Enterprises: Want on-premise → Custom license
@@ -89,18 +102,22 @@ Students and institutions are the primary target:
 ## Revenue Projections
 
 ### Conservative Estimate
+
 Assuming:
+
 - 10,000 active users (first year)
 - 5% conversion to Professional tier ($5/month)
 - Average institutional license: $500/year
 - 10 institutional customers
 
 **Monthly Revenue**:
+
 - Users paying: 500 x $5 = $2,500
 - Institutional (monthly avg): $4,200
 - **Total: ~$6,700/month**
 
 **Annual Costs** (minimal):
+
 - Server infrastructure: $500 (CDN, storage)
 - Developer time (part-time): $2,000/month
 - Miscellaneous: $500/month
@@ -113,7 +130,9 @@ Assuming:
 ## What We Will NOT Do
 
 ### Hard Paywalls
+
 We will NOT:
+
 - Lock core features behind payment
 - Charge for bug fixes
 - Limit free tier functionality over time
@@ -123,9 +142,11 @@ We will NOT:
 - Require accounts
 
 ### Cloud-Only Future
+
 Proofly will always work 100% offline. Optional cloud features (if added) will be truly optional.
 
 ### Acquisition Pressure
+
 If acquired, the free tier will remain free. Our acquisition terms (if any) will explicitly protect user privacy.
 
 ---
@@ -133,13 +154,16 @@ If acquired, the free tier will remain free. Our acquisition terms (if any) will
 ## Development Sustainability
 
 ### Avoiding Burnout
+
 1. **Community Contributions**: GitHub sponsors, code reviews, issue triage
 2. **Sustainable Pace**: No "growth at all costs" mentality
 3. **Focus**: Do one thing well (clarity + privacy), not everything
 4. **Open Source**: Leverage community development
 
 ### Long-Term Vision
+
 Proofly should mature to:
+
 - Stable, reliable, minimal maintenance
 - Community-maintained core
 - Predictable revenue from optional tier
@@ -150,10 +174,13 @@ Proofly should mature to:
 ## How Transparency Builds Trust
 
 ### This Document
+
 Being public about our business model proves we're not hiding anything.
 
 ### Why This Matters
+
 Users can see:
+
 - We're not desperate for revenue (won't add sketchy features)
 - We have a long-term plan (won't disappear)
 - We care about sustainability (won't burn out)
@@ -164,6 +191,7 @@ Users can see:
 ## Call for Support
 
 ### If You Believe in Proofly
+
 1. **Star the repo** - Shows demand to potential partners
 2. **Share with students/professionals** - Organic growth
 3. **Consider sponsoring** (when available) - Supports development
@@ -192,4 +220,5 @@ A: No. Exam Mode is in the free tier forever.
 ---
 
 ## Contact
+
 For questions about sustainability or business partnerships, open a discussion on GitHub.

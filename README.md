@@ -34,7 +34,9 @@ No clouds. No servers. No data collection. Just your writing, your device, your 
 ## Why Proofly Wins
 
 ### True Privacy (Not Just a Buzzword)
+
 Grammarly scans your writing. Proofly doesn't. Everything runs locally:
+
 - No servers
 - No data centers
 - No terms of service
@@ -43,16 +45,20 @@ Grammarly scans your writing. Proofly doesn't. Everything runs locally:
 **Exam Mode**: Write during exams with zero cloud contact. Zero logging. Verified privacy.
 
 ### Works Offline
+
 Write on airplanes. Mountains. Anywhere. Works perfectly without internet (after model download).
 
 ### Built for Clarity, Not Tone Fluff
+
 We focus on what matters:
+
 - Grammar & structure
 - Clarity for non-native English
 - Explanations that teach
 - No "make it more professional" nonsense
 
 ### Lightning Fast
+
 No API calls. No network latency. Instant suggestions as you type.
 
 ---
@@ -60,10 +66,13 @@ No API calls. No network latency. Instant suggestions as you type.
 ## What Proofly Does
 
 ### Proofly Explains Why
+
 Every suggestion includes a one-line explanation. This is powerful for students.
 
 ### Exam Mode
+
 Write during exams safely:
+
 - Zero cloud sync
 - Zero logging
 - Zero history
@@ -71,7 +80,9 @@ Write during exams safely:
 - Perfect for university exams, bar exams, certifications
 
 ### Smart Corrections
+
 Not paragraph dumps. Real, useful suggestions:
+
 - Passive voice warnings: "Consider rewording to be direct"
 - Clarity checks: Highlights confusing sentences
 - Sentence-level fixes: Not entire paragraph rewrites
@@ -79,7 +90,9 @@ Not paragraph dumps. Real, useful suggestions:
 - Keyboard shortcuts: One-click accept/reject
 
 ### Invisible UX
+
 Proofly gets out of the way:
+
 - Inline suggestions (no popups)
 - Hover explanations
 - Minimal UI
@@ -89,17 +102,17 @@ Proofly gets out of the way:
 
 ## Proofly vs. Grammarly (The Honest Comparison)
 
-| Feature | Proofly | Grammarly |
-|---------|---------|----------|
-| **Privacy** | ✓ 100% local | ✗ Uploads to cloud |
-| **Offline Mode** | ✓ Works without internet | ✗ Requires internet |
-| **Cost** | ✓ Free forever | $ $12-30/month |
-| **Open Source** | ✓ Fully auditable | ✗ Proprietary |
-| **Exam Safe** | ✓ Zero logging mode | ✗ Not exam-safe |
-| **Clarity Focus** | ✓ Explains why | ✗ Tone rewriting (fluff) |
-| **Non-native English** | ✓ ESL-specific clarity | Δ Generic tone |
-| **No Account** | ✓ Install and go | ✗ Requires login |
-| **Lightweight** | ✓ <5KB initial | ✗ Heavy script injection |
+| Feature                | Proofly                  | Grammarly                |
+| ---------------------- | ------------------------ | ------------------------ |
+| **Privacy**            | ✓ 100% local             | ✗ Uploads to cloud       |
+| **Offline Mode**       | ✓ Works without internet | ✗ Requires internet      |
+| **Cost**               | ✓ Free forever           | $ $12-30/month           |
+| **Open Source**        | ✓ Fully auditable        | ✗ Proprietary            |
+| **Exam Safe**          | ✓ Zero logging mode      | ✗ Not exam-safe          |
+| **Clarity Focus**      | ✓ Explains why           | ✗ Tone rewriting (fluff) |
+| **Non-native English** | ✓ ESL-specific clarity   | Δ Generic tone           |
+| **No Account**         | ✓ Install and go         | ✗ Requires login         |
+| **Lightweight**        | ✓ <5KB initial           | ✗ Heavy script injection |
 
 **Proofly is not better at tone rewriting.** If you need professional tone suggestions, Grammarly is fine. Proofly is for people who care more about privacy than polish.
 
@@ -110,11 +123,13 @@ Proofly gets out of the way:
 ### Install Now
 
 #### Chrome Web Store (Coming Soon)
+
 1. [Get it from Chrome Web Store](https://chromewebstore.google.com/detail/proofly/oiaicmknhbpnhngdeppegnhobnleeolm)
 2. Click "Add to Chrome"
 3. Done
 
 #### Manual Installation
+
 1. [Download latest release](https://github.com/sagarmandavkar-UX/proofly/releases)
 2. Extract ZIP
 3. Open `chrome://extensions/`
@@ -124,6 +139,7 @@ Proofly gets out of the way:
 7. Download the AI model when prompted
 
 ### Requirements
+
 - Chrome 141+
 - 22GB free space (for AI model)
 - 4GB+ VRAM recommended
@@ -134,23 +150,27 @@ Proofly gets out of the way:
 ## Roadmap
 
 ### Now (MVP)
+
 - [x] Offline exam mode
 - [x] Clarity explanations
 - [x] Passive voice warnings
 - [x] Shadow DOM isolation
 
 ### Q1 2026
+
 - [ ] Readability scoring (grade level)
 - [ ] ESL-specific clarity rules
 - [ ] Academic writing mode (APA/MLA)
 - [ ] Tone adjustment (formal <-> casual)
 
 ### Q2-Q3 2026
+
 - [ ] Edge browser support
 - [ ] macOS menu-bar app
 - [ ] Offline model fallback
 
 ### Q4 2026+
+
 - [ ] Optional cloud sync (strict opt-in)
 - [ ] Free + premium tier
 - [ ] Student discount
@@ -161,6 +181,7 @@ Proofly gets out of the way:
 ## Features Deep Dive
 
 ### What We Detect
+
 - Grammar: Subject-verb agreement, tense, word forms
 - Spelling: Typos and misspellings
 - Punctuation: Commas, periods, quotes
@@ -171,6 +192,7 @@ Proofly gets out of the way:
 - Multilingual: All languages Gemini Nano supports
 
 ### What We Don't Do
+
 - No tone rewriting
 - No paragraph generation
 - No plagiarism checking
@@ -178,6 +200,7 @@ Proofly gets out of the way:
 - No AI-generated nonsense
 
 ### Privacy Indicators
+
 - "Nothing leaves your device" badge
 - Local processing diagram
 - Disable logging toggle
@@ -188,6 +211,7 @@ Proofly gets out of the way:
 ## Build & Contribute
 
 ### Quick Start
+
 ```bash
 git clone https://github.com/sagarmandavkar-UX/proofly.git
 cd proofly
@@ -196,6 +220,7 @@ npm run dev
 ```
 
 ### Commands
+
 ```bash
 npm run typecheck   # Type safety
 npm run lint        # Code style
@@ -205,6 +230,7 @@ npm run build       # Production build
 ```
 
 ### Architecture
+
 - **Web Components**: No framework bloat
 - **TypeScript**: Full type safety
 - **Chrome AI API**: Built-in Gemini Nano
@@ -212,6 +238,7 @@ npm run build       # Production build
 - **Chrome Storage API**: Settings sync
 
 ### Contributing
+
 Read [AGENTS.md](AGENTS.md) for detailed guidelines. Look for "Good first issue" labels.
 
 ---
@@ -219,6 +246,7 @@ Read [AGENTS.md](AGENTS.md) for detailed guidelines. Look for "Good first issue"
 ## Privacy & Trust
 
 ### We Don't Collect Data
+
 - No usage analytics
 - No telemetry
 - No crash reports
@@ -226,12 +254,14 @@ Read [AGENTS.md](AGENTS.md) for detailed guidelines. Look for "Good first issue"
 - No user profiles
 
 ### Everything Is Local
+
 - AI runs on your device
 - No cloud calls
 - Works offline
 - You control the extension
 
 ### Exam Mode Verified
+
 - Zero cloud sync
 - Zero logging
 - Zero history
@@ -250,6 +280,7 @@ No subscriptions. No ads. No tracking. No upsells.
 We believe privacy shouldn't be a luxury.
 
 ### Future Options (Not Required)
+
 - Optional advanced rewrites
 - Student discount
 - Enterprise/campus licenses
@@ -300,13 +331,13 @@ Proofly is designed to be customizable for power users and developers who want t
 
 ### Environment Variables
 
-| Variable | Purpose | Default |
-|----------|---------|----------|
-| `PROOFLY_DEBUG` | Enable debug logging | `false` |
-| `PROOFLY_MODEL_DIR` | Custom path to AI models | `./models` |
-| `PROOFLY_STORAGE_QUOTA` | Local storage limit in MB | `100` |
-| `PROOFLY_HIGHLIGHT_THEME` | Custom CSS theme for highlights | `system` |
-| `PROOFLY_CACHE_ENABLED` | Enable suggestion caching | `true` |
+| Variable                  | Purpose                         | Default    |
+| ------------------------- | ------------------------------- | ---------- |
+| `PROOFLY_DEBUG`           | Enable debug logging            | `false`    |
+| `PROOFLY_MODEL_DIR`       | Custom path to AI models        | `./models` |
+| `PROOFLY_STORAGE_QUOTA`   | Local storage limit in MB       | `100`      |
+| `PROOFLY_HIGHLIGHT_THEME` | Custom CSS theme for highlights | `system`   |
+| `PROOFLY_CACHE_ENABLED`   | Enable suggestion caching       | `true`     |
 
 ### Plugin Architecture
 
@@ -328,8 +359,8 @@ export class CustomGrammarPlugin implements GrammarPlugin {
         column: 5,
         severity: 'warning',
         message: 'Custom rule violation',
-        suggestion: 'Use this instead'
-      }
+        suggestion: 'Use this instead',
+      },
     ];
   }
 }

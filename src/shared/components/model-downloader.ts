@@ -17,7 +17,7 @@ export class ModelDownloaderComponent extends HTMLElement {
     progress: null as HTMLProgressElement | null,
     progressText: null as HTMLDivElement | null,
     error: null as HTMLDivElement | null,
-  }
+  };
 
   constructor() {
     super();
@@ -25,11 +25,11 @@ export class ModelDownloaderComponent extends HTMLElement {
   }
 
   connectedCallback() {
-  this.render().then(() => {
-    this.attachEventListeners();
-    this.checkInitialState();
-  });
-}
+    this.render().then(() => {
+      this.attachEventListeners();
+      this.checkInitialState();
+    });
+  }
 
   disconnectedCallback() {
     this.cleanup.forEach((fn) => fn());
@@ -40,55 +40,55 @@ export class ModelDownloaderComponent extends HTMLElement {
     }
   }
 
-private async checkInitialState() {
-  try {
-    // 1. Check if the flag is even enabled (window check)
-    if (!('Proofreader' in window)) {
-      this.showError('Built-in AI features are disabled. Please enable the flag below.');
-      this.hideDownloadButton();
-      return;
-    }
-
-    // 2. Check the specific Proofreader availability status
-    const availability = await this.downloader.checkProofreaderAvailability();
-
-    switch (availability) {
-      case 'available':
-        // Model is already on disk
-        await this.markModelAsReady();
-        this.showSuccess();
-        break;
-
-      case 'downloadable':
-        // Requirements met, but model is missing
-        this.hideError();
-        this.showDownloadButton();
-        break;
-
-      case 'downloading':
-        // Already in progress (perhaps from a previous session)
-        this.showProgress();
-        break;
-
-      case 'unavailable':
-      default:
-        // System doesn't meet requirements (GPU, Storage, etc.)
-        this.showError('Your system does not meet the hardware requirements for Gemini Nano.');
+  private async checkInitialState() {
+    try {
+      // 1. Check if the flag is even enabled (window check)
+      if (!('Proofreader' in window)) {
+        this.showError('Built-in AI features are disabled. Please enable the flag below.');
         this.hideDownloadButton();
-        break;
-    }
-  } catch (err) {
-    this.showError(`Initialization failed: ${(err as Error).message}`);
-  }
-}
+        return;
+      }
 
-private async markModelAsReady() {
-  await chrome.storage.local.set({
-    [STORAGE_KEYS.MODEL_DOWNLOADED]: true,
-    [STORAGE_KEYS.PROOFREADER_READY]: true,
-    [STORAGE_KEYS.MODEL_AVAILABILITY]: 'available',
-  });
-}
+      // 2. Check the specific Proofreader availability status
+      const availability = await this.downloader.checkProofreaderAvailability();
+
+      switch (availability) {
+        case 'available':
+          // Model is already on disk
+          await this.markModelAsReady();
+          this.showSuccess();
+          break;
+
+        case 'downloadable':
+          // Requirements met, but model is missing
+          this.hideError();
+          this.showDownloadButton();
+          break;
+
+        case 'downloading':
+          // Already in progress (perhaps from a previous session)
+          this.showProgress();
+          break;
+
+        case 'unavailable':
+        default:
+          // System doesn't meet requirements (GPU, Storage, etc.)
+          this.showError('Your system does not meet the hardware requirements for Gemini Nano.');
+          this.hideDownloadButton();
+          break;
+      }
+    } catch (err) {
+      this.showError(`Initialization failed: ${(err as Error).message}`);
+    }
+  }
+
+  private async markModelAsReady() {
+    await chrome.storage.local.set({
+      [STORAGE_KEYS.MODEL_DOWNLOADED]: true,
+      [STORAGE_KEYS.PROOFREADER_READY]: true,
+      [STORAGE_KEYS.MODEL_AVAILABILITY]: 'available',
+    });
+  }
 
   private async handleDownload() {
     if (!this.elements.button) return;
@@ -132,15 +132,20 @@ private async markModelAsReady() {
   private updateProgress(progress: DownloadProgress) {
     if (!this.elements.progress || !this.elements.progressText) return;
 
-    if (progress.progress <= 0 || progress.state === 'checking' || progress.state === 'extracting') {
-      this.elements.progress.removeAttribute('value'); 
+    if (
+      progress.progress <= 0 ||
+      progress.state === 'checking' ||
+      progress.state === 'extracting'
+    ) {
+      this.elements.progress.removeAttribute('value');
     } else {
       this.elements.progress.value = progress.progress;
     }
 
     const percent = Math.floor(progress.progress * 100);
-    const modelLabel = progress.modelType === 'language-detector' ? 'Language Detection' : 'Proofreader';
-    
+    const modelLabel =
+      progress.modelType === 'language-detector' ? 'Language Detection' : 'Proofreader';
+
     let text = '';
     switch (progress.state) {
       case 'checking':
@@ -245,22 +250,24 @@ private async markModelAsReady() {
       // The handler needs to be bound to 'this' to access class methods
       const handleButtonClick = () => this.handleDownload();
       this.elements.button.addEventListener('click', handleButtonClick);
-      
+
       // Clean up to avoid memory leaks
-      this.cleanup.push(() => this.elements.button?.removeEventListener('click', handleButtonClick));
+      this.cleanup.push(() =>
+        this.elements.button?.removeEventListener('click', handleButtonClick)
+      );
     }
 
     // Listen to the downloader service for progress updates
     const unsubscribeProgress = this.downloader.on('state-change', (progress) => {
       this.updateProgress(progress);
-      
+
       if (progress.state === 'ready') {
         this.showSuccess();
       } else if (progress.state === 'error') {
         this.showError(progress.error?.message || 'Download failed');
       }
     });
-    
+
     this.cleanup.push(unsubscribeProgress);
   }
 
@@ -462,14 +469,15 @@ private async markModelAsReady() {
     `;
   }
 
-private async render() {
+  private async render() {
     const isFlagEnabled = 'Proofreader' in window;
-    
+
     // Check disk space using the Storage Manager API
     const storageInfo = await navigator.storage.estimate();
-    const freeSpaceGB = (storageInfo.quota && storageInfo.usage) 
-      ? (storageInfo.quota - storageInfo.usage) / (1024 ** 3) 
-      : 0;
+    const freeSpaceGB =
+      storageInfo.quota && storageInfo.usage
+        ? (storageInfo.quota - storageInfo.usage) / 1024 ** 3
+        : 0;
     const hasEnoughSpace = freeSpaceGB >= 22;
 
     const container = document.createElement('div');
@@ -477,17 +485,22 @@ private async render() {
 
     const getReqLine = (text: string, isMet: boolean | null, isFlag = false) => {
       const icon = isMet === true ? '✓' : isMet === false ? '✕' : '○';
-      const iconClass = isMet === true ? 'icon-check' : isMet === false ? 'icon-cross' : 'icon-pending';
-      
+      const iconClass =
+        isMet === true ? 'icon-check' : isMet === false ? 'icon-cross' : 'icon-pending';
+
       return `
         <li class="requirement-item">
           <span class="${iconClass}">${icon}</span>
           <span>${text}</span>
-          ${isFlag && !isMet ? `
+          ${
+            isFlag && !isMet
+              ? `
             <div class="code-block-wrapper" id="copyFlag" title="Click to copy">
               <code>chrome://flags/#proofreader-api-for-gemini-nano</code>
               <span class="copy-icon">📋</span>
-            </div>` : ''}
+            </div>`
+              : ''
+          }
         </li>
       `;
     };
