@@ -155,5 +155,4 @@ MIT. See [LICENSE.md](LICENSE.md).
 ## Help and support
 
 - Bug reports and feature requests: [GitHub Issues](https://github.com/sagarmandavkar-UX/proofly/issues)
-- Questions: [GitHub Discussions](https://github.com/sagarmandavkar-UX/proofly/discussions)
 - Documentation: [AGENTS.md](AGENTS.md)
